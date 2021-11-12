@@ -1,5 +1,7 @@
 package org.springframework.cloud.gateway.support.msg;
 
+import org.apache.commons.lang.StringUtils;
+
 public class CnMessage extends Message {
 
 	private static volatile CnMessage instance;
@@ -17,17 +19,15 @@ public class CnMessage extends Message {
 	}
 
 	@Override
-	public String getProjectNoResourceGroup(String project) {
-		return String.format("当前项目”%s”未绑定资源组，请联系管理员为其绑定资源组。", project);
+	public String getContext(String project, ErrorCode errorCode) {
+		if (StringUtils.isNotEmpty(project)) {
+			return formatContext(String.format(errorCode.cn, project), errorCode.code);
+		}
+		return formatContext(errorCode.cn, errorCode.code);
 	}
 
 	@Override
-	public String getProjectNoInstance(String project) {
-		return String.format("当前项目“%s”没有可用实例。请联系管理员检查实例状态后重试。", project);
-	}
-
-	@Override
-	public String getNoInstance() {
-		return "没有可用实例。请联系管理员检查实例状态后重试。";
+	public String getContext(ErrorCode errorCode) {
+		return formatContext(errorCode.cn, errorCode.code);
 	}
 }

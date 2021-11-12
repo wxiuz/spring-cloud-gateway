@@ -1,5 +1,7 @@
 package org.springframework.cloud.gateway.support.msg;
 
+import org.apache.commons.lang.StringUtils;
+
 public class Message {
 
 	private static volatile Message instance;
@@ -16,15 +18,18 @@ public class Message {
 		return instance;
 	}
 
-	public String getProjectNoResourceGroup(String project) {
-		return String.format("No resource group has been allocated to the project '%s' yet. Please contact your administrator to allocate a resource group for it.", project);
+	public String formatContext(String context, String code) {
+		return code + " " + context;
 	}
 
-	public String getProjectNoInstance(String project) {
-		return String.format("No available instance has been allocated to the project '%s' yet. Please contact your administrator to check the instance and retry.", project);
+	public String getContext(String project, ErrorCode errorCode) {
+		if (StringUtils.isNotEmpty(project)) {
+			return formatContext(String.format(errorCode.en, project), errorCode.code);
+		}
+		return errorCode.en;
 	}
 
-	public String getNoInstance() {
-		return "No available instance. Please contact your administrator to check the instance and retry.";
+	public String getContext(ErrorCode errorCode) {
+		return formatContext(errorCode.en, errorCode.code);
 	}
 }

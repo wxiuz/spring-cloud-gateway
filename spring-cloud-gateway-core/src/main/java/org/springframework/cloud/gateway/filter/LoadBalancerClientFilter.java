@@ -25,6 +25,7 @@ import com.netflix.loadbalancer.BaseLoadBalancer;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.cloud.gateway.support.msg.ErrorCode;
 import org.springframework.cloud.gateway.support.msg.MsgPicker;
 import reactor.core.publisher.Mono;
 
@@ -91,9 +92,9 @@ public class LoadBalancerClientFilter implements GlobalFilter, Ordered {
 
 		if (instance == null) {
 			if (StringUtils.isBlank(exchange.getAttribute(PROJECT_KEY))) {
-				throw NotFoundException.create(properties.isUse404(), MsgPicker.getMsg().getNoInstance());
+				throw NotFoundException.create(properties.isUse404(), MsgPicker.getMsg().getContext(ErrorCode.NO_INSTANCE));
 			} else {
-				throw NotFoundException.create(properties.isUse404(), MsgPicker.getMsg().getProjectNoInstance(exchange.getAttribute(PROJECT_KEY)));
+				throw NotFoundException.create(properties.isUse404(), MsgPicker.getMsg().getContext(exchange.getAttribute(PROJECT_KEY), ErrorCode.PROJECT_NO_INSTANCE));
 			}
 		}
 

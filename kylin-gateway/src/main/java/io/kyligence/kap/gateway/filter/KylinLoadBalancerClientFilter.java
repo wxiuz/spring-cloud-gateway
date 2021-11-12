@@ -11,6 +11,7 @@ import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.cloud.gateway.config.LoadBalancerProperties;
 import org.springframework.cloud.gateway.event.RefreshRoutesEvent;
 import org.springframework.cloud.gateway.filter.LoadBalancerClientFilter;
+import org.springframework.cloud.gateway.support.msg.ErrorCode;
 import org.springframework.cloud.gateway.support.msg.MsgPicker;
 import org.springframework.cloud.netflix.ribbon.RibbonLoadBalancerClient;
 import org.springframework.context.ApplicationListener;
@@ -69,7 +70,7 @@ public class KylinLoadBalancerClientFilter extends LoadBalancerClientFilter
 		if (Boolean.valueOf(exchange.getAttribute(PROJECT_NO_RESOURCE_GROUP_EXCEPTION))
 				&& StringUtils.isNotBlank(exchange.getAttribute(PROJECT_KEY))) {
 			throw ForbiddenException.create(
-					MsgPicker.getMsg().getProjectNoResourceGroup(exchange.getAttribute(PROJECT_KEY)));
+					MsgPicker.getMsg().getContext(exchange.getAttribute(PROJECT_KEY), ErrorCode.PROJECT_NO_RESOURCE_GROUP));
 		}
 
 		return choose(uri.getAuthority(), null);

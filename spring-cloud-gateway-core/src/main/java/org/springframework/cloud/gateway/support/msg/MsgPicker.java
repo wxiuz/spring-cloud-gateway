@@ -16,7 +16,7 @@ public class MsgPicker {
 	}
 
 	public static void setMsg(String lang) {
-		if ("cn".equals(lang))
+		if (MessageUtils.isCn(lang))
 			msg.set(CnMessage.getInstance());
 		else
 			msg.set(Message.getInstance());
