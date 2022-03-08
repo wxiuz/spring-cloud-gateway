@@ -33,6 +33,8 @@ import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
+import static java.util.stream.Collectors.toSet;
+
 /**
  * @author Dave Syer
  * @author Tim Ysewyn
@@ -56,7 +58,8 @@ public class ProxyExchangeArgumentResolver implements HandlerMethodArgumentResol
 	}
 
 	public void setAutoForwardedHeaders(Set<String> autoForwardedHeaders) {
-		this.autoForwardedHeaders = autoForwardedHeaders;
+		this.autoForwardedHeaders = autoForwardedHeaders == null ? null
+				: autoForwardedHeaders.stream().map(String::toLowerCase).collect(toSet());
 	}
 
 	public void setSensitive(Set<String> sensitive) {
@@ -69,11 +72,9 @@ public class ProxyExchangeArgumentResolver implements HandlerMethodArgumentResol
 	}
 
 	@Override
-	public Object resolveArgument(MethodParameter parameter,
-			ModelAndViewContainer mavContainer, NativeWebRequest webRequest,
-			WebDataBinderFactory binderFactory) throws Exception {
-		ProxyExchange<?> proxy = new ProxyExchange<>(rest, webRequest, mavContainer,
-				binderFactory, type(parameter));
+	public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
+			NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
+		ProxyExchange<?> proxy = new ProxyExchange<>(rest, webRequest, mavContainer, binderFactory, type(parameter));
 		proxy.headers(headers);
 		if (this.autoForwardedHeaders.size() > 0) {
 			proxy.headers(extractAutoForwardedHeaders(webRequest));
@@ -94,15 +95,13 @@ public class ProxyExchangeArgumentResolver implements HandlerMethodArgumentResol
 	}
 
 	private HttpHeaders extractAutoForwardedHeaders(NativeWebRequest webRequest) {
-		HttpServletRequest nativeRequest = webRequest
-				.getNativeRequest(HttpServletRequest.class);
+		HttpServletRequest nativeRequest = webRequest.getNativeRequest(HttpServletRequest.class);
 		Enumeration<String> headerNames = nativeRequest.getHeaderNames();
 		HttpHeaders headers = new HttpHeaders();
 		while (headerNames.hasMoreElements()) {
 			String header = headerNames.nextElement();
-			if (this.autoForwardedHeaders.contains(header)) {
-				headers.addAll(header,
-						Collections.list(nativeRequest.getHeaders(header)));
+			if (this.autoForwardedHeaders.contains(header.toLowerCase())) {
+				headers.addAll(header, Collections.list(nativeRequest.getHeaders(header)));
 			}
 		}
 		return headers;

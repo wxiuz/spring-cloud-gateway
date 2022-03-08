@@ -6,7 +6,7 @@
 
 	<groupId>org.springframework.cloud</groupId>
 	<artifactId>spring-cloud-gateway</artifactId>
-	<version>2.2.3.RELEASE</version>
+	<version>3.0.0</version>
 	<packaging>pom</packaging>
 
 	<name>Spring Cloud Gateway</name>
@@ -15,7 +15,7 @@
 	<parent>
 		<groupId>org.springframework.cloud</groupId>
 		<artifactId>spring-cloud-build</artifactId>
-		<version>2.3.5.RELEASE</version>
+		<version>3.0.0</version>
 		<relativePath/>
 	</parent>
 	<scm>
@@ -51,12 +51,13 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<blockhound.version>1.0.4.RELEASE</blockhound.version>
 		<java.version>1.8</java.version>
-		<spring-cloud-commons.version>2.2.3.RELEASE</spring-cloud-commons.version>
-		<spring-cloud-netflix.version>2.2.3.RELEASE</spring-cloud-netflix.version>
-		<spring-cloud-circuitbreaker.version>1.0.3.RELEASE</spring-cloud-circuitbreaker.version>
-		<embedded-redis.version>0.6</embedded-redis.version>
-		<blockhound.version>1.0.3.RELEASE</blockhound.version>
+		<junit-pioneer.version>0.9.0</junit-pioneer.version>
+		<spring-cloud-circuitbreaker.version>2.0.0</spring-cloud-circuitbreaker.version>
+		<spring-cloud-commons.version>3.0.0</spring-cloud-commons.version>
+		<testcontainers.version>1.14.3</testcontainers.version>
+		<log4j.version>2.17.1</log4j.version>
 	</properties>
 
 	<dependencyManagement>
@@ -77,41 +78,9 @@
 			</dependency>
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-netflix-dependencies</artifactId>
-				<version>${spring-cloud-netflix.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-ribbon</artifactId>
-				<version>${spring-cloud-netflix.version}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>com.netflix.ribbon</groupId>
-						<artifactId>ribbon-transport</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>io.reactivex</groupId>
-						<artifactId>rxnetty</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
 				<artifactId>spring-cloud-test-support</artifactId>
 				<scope>test</scope>
 				<version>${spring-cloud-commons.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
-				<version>${spring-cloud-netflix.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
-				<version>${spring-cloud-netflix.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
@@ -131,14 +100,96 @@
 				<version>${spring-boot.version}</version>
 			</dependency>
 			<dependency>
-				<groupId>com.github.kstyrc</groupId>
-				<artifactId>embedded-redis</artifactId>
-				<version>${embedded-redis.version}</version>
-			</dependency>
-			<dependency>
 				<groupId>io.projectreactor.tools</groupId>
 				<artifactId>blockhound-junit-platform</artifactId>
 				<version>${blockhound.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.junit-pioneer</groupId>
+				<artifactId>junit-pioneer</artifactId>
+				<version>${junit-pioneer.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.testcontainers</groupId>
+				<artifactId>testcontainers-bom</artifactId>
+				<version>${testcontainers.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-to-slf4j</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-http</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-common</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-buffer</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-transport</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-handler</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-http2</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-resolver-dns</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-resolver</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-dns</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-transport-native-unix-common</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-handler-proxy</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-socks</artifactId>
+				<version>4.1.71.Final</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>1.2.8</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -147,7 +198,7 @@
 		<module>spring-cloud-gateway-dependencies</module>
 		<module>spring-cloud-gateway-mvc</module>
 		<module>spring-cloud-gateway-webflux</module>
-		<module>spring-cloud-gateway-core</module>
+		<module>spring-cloud-gateway-server</module>
 		<module>spring-cloud-starter-gateway</module>
 		<module>spring-cloud-gateway-sample</module>
 		<module>kylin-gateway</module>
