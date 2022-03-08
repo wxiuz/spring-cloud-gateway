@@ -39,7 +39,9 @@ import org.springframework.cloud.gateway.webflux.ProductionConfigurationTests.Te
 import org.springframework.cloud.gateway.webflux.ProductionConfigurationTests.TestApplication.Bar;
 import org.springframework.cloud.gateway.webflux.ProductionConfigurationTests.TestApplication.Foo;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.RequestEntity;
@@ -47,6 +49,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -173,6 +176,29 @@ public class ProductionConfigurationTests {
 
 	@Test
 	@SuppressWarnings({ "Duplicates", "unchecked" })
+	public void testSensitiveHeadersOverride() throws Exception {
+		Map<String, List<String>> headers = rest
+				.exchange(
+						RequestEntity.get(rest.getRestTemplate().getUriTemplateHandler().expand("/proxy/headers"))
+								.header("foo", "bar").header("abc", "xyz").header("cookie", "monster").build(),
+						Map.class)
+				.getBody();
+		assertThat(headers).doesNotContainKey("foo").doesNotContainKey("hello").containsKeys("bar", "abc");
+
+		assertThat(headers.get("cookie")).containsOnly("monster");
+	}
+
+	@Test
+	public void testSensitiveHeadersDefault() throws Exception {
+		Map<String, List<String>> headers = rest.exchange(RequestEntity
+				.get(rest.getRestTemplate().getUriTemplateHandler().expand("/proxy/sensitive-headers-default"))
+				.header("cookie", "monster").build(), Map.class).getBody();
+
+		assertThat(headers).doesNotContainKey("cookie");
+	}
+
+	@Test
+	@SuppressWarnings({ "Duplicates", "unchecked" })
 	public void headers() throws Exception {
 		Map<String, List<String>> headers = rest
 				.exchange(RequestEntity.get(rest.getRestTemplate().getUriTemplateHandler().expand("/proxy/headers"))
@@ -195,6 +221,24 @@ public class ProductionConfigurationTests {
 		assertThat(headers).containsKey("forwarded");
 		assertThat(headers.get("forwarded").size()).isEqualTo(1);
 		assertThat(headers.get("forwarded").get(0)).isEqualTo("host=localhost:" + port);
+	}
+
+	@Test
+	public void deleteWithoutBody() throws Exception {
+		ResponseEntity<Void> deleteResponse = rest.exchange("/proxy/{id}/no-body", HttpMethod.DELETE, null, Void.TYPE,
+				Collections.singletonMap("id", "123"));
+		assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	public void deleteWithBody() throws Exception {
+		Foo foo = new Foo("to-be-deleted");
+		ParameterizedTypeReference<Map<String, Foo>> returnType = new ParameterizedTypeReference<Map<String, Foo>>() {
+		};
+		ResponseEntity<Map<String, Foo>> deleteResponse = rest.exchange("/proxy/{id}", HttpMethod.DELETE,
+				new HttpEntity<Foo>(foo), returnType, Collections.singletonMap("id", "123"));
+		assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(deleteResponse.getBody().get("deleted")).isEqualToComparingFieldByField(foo);
 	}
 
 	@SpringBootApplication
@@ -296,8 +340,16 @@ public class ProductionConfigurationTests {
 			@GetMapping("/proxy/headers")
 			public Mono<ResponseEntity<Map<String, List<String>>>> headers(
 					ProxyExchange<Map<String, List<String>>> proxy) {
-				proxy.sensitive("foo");
-				proxy.sensitive("hello");
+				proxy.sensitive("foo", "hello");
+				proxy.header("bar", "hello");
+				proxy.header("abc", "123");
+				proxy.header("hello", "world");
+				return proxy.uri(home.toString() + "/headers").get();
+			}
+
+			@GetMapping("/proxy/sensitive-headers-default")
+			public Mono<ResponseEntity<Map<String, List<String>>>> defaultSensitiveHeaders(
+					ProxyExchange<Map<String, List<String>>> proxy) {
 				proxy.header("bar", "hello");
 				proxy.header("abc", "123");
 				proxy.header("hello", "world");
@@ -320,6 +372,19 @@ public class ProductionConfigurationTests {
 					@RequestBody Map<String, Object> body, ProxyExchange<List<Object>> proxy) throws Exception {
 				body.put("id", id);
 				return proxy.uri(home.toString() + "/bars").body(Arrays.asList(body)).forward(this::first);
+			}
+
+			@DeleteMapping("/proxy/{id}/no-body")
+			public Mono<ResponseEntity<Object>> deleteWithoutBody(@PathVariable Integer id, ProxyExchange<Object> proxy)
+					throws Exception {
+				return proxy.uri(home.toString() + "/foos/" + id + "/no-body").delete();
+			}
+
+			@DeleteMapping("/proxy/{id}")
+			public Mono<ResponseEntity<Object>> deleteWithBody(@PathVariable Integer id, @RequestBody Foo foo,
+					ProxyExchange<Object> proxy) throws Exception {
+				return proxy.uri(home.toString() + "/foos/" + id).body(foo).delete(response -> ResponseEntity
+						.status(response.getStatusCode()).headers(response.getHeaders()).body(response.getBody()));
 			}
 
 		}
@@ -349,6 +414,16 @@ public class ProductionConfigurationTests {
 			@GetMapping("/headers")
 			public Map<String, List<String>> headers(@RequestHeader HttpHeaders headers) {
 				return headers;
+			}
+
+			@DeleteMapping("/foos/{id}/no-body")
+			public ResponseEntity<?> deleteFoo(@PathVariable Integer id) {
+				return ResponseEntity.ok().build();
+			}
+
+			@DeleteMapping("/foos/{id}")
+			public ResponseEntity<?> deleteFoo(@PathVariable Integer id, @RequestBody Foo foo) {
+				return ResponseEntity.ok().body(Collections.singletonMap("deleted", foo));
 			}
 
 		}

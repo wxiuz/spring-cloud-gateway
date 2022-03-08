@@ -16,10 +16,10 @@
 
 package org.springframework.cloud.gateway.filter.factory;
 
+import java.util.Arrays;
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
@@ -34,7 +34,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -44,7 +43,6 @@ import static org.springframework.cloud.gateway.test.TestUtils.getMap;
  * @author Spencer Gibb
  * @author Biju Kunjummen
  */
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @DirtiesContext
 @ActiveProfiles(profiles = "request-header-web-filter")
@@ -60,11 +58,29 @@ public class AddRequestHeaderGatewayFilterFactoryTests extends BaseWebClientTest
 	}
 
 	@Test
+	public void addRequestHeaderFilterWorksMultipleValues() {
+		testClient.get().uri("/multivalueheaders").header("Host", "www.addrequestheader.org").exchange()
+				.expectBody(Map.class).consumeWith(result -> {
+					Map<String, Object> headers = getMap(result.getResponseBody(), "headers");
+					assertThat(headers).containsEntry("X-Request-Example", Arrays.asList("ValueA", "ValueB"));
+				});
+	}
+
+	@Test
 	public void addRequestHeaderFilterWorksJavaDsl() {
 		testClient.get().uri("/headers").header("Host", "www.addrequestheaderjava.org").exchange().expectBody(Map.class)
 				.consumeWith(result -> {
 					Map<String, Object> headers = getMap(result.getResponseBody(), "headers");
 					assertThat(headers).containsEntry("X-Request-Acme", "ValueB-www");
+				});
+	}
+
+	@Test
+	public void addRequestHeaderFilterMultipleValuesWorksJavaDsl() {
+		testClient.get().uri("/multivalueheaders").header("Host", "www.addrequestheaderjava.org").exchange()
+				.expectBody(Map.class).consumeWith(result -> {
+					Map<String, Object> headers = getMap(result.getResponseBody(), "headers");
+					assertThat(headers).containsEntry("X-Request-Acme", Arrays.asList("ValueB-www", "ValueC-www"));
 				});
 	}
 
@@ -89,6 +105,12 @@ public class AddRequestHeaderGatewayFilterFactoryTests extends BaseWebClientTest
 					r -> r.path("/headers").and().host("{sub}.addrequestheaderjava.org")
 							.filters(f -> f.prefixPath("/httpbin").addRequestHeader("X-Request-Acme", "ValueB-{sub}"))
 							.uri(uri))
+					.route("add_multiple_request_header_java_test",
+							r -> r.path("/multivalueheaders").and().host("{sub}.addrequestheaderjava.org")
+									.filters(f -> f.prefixPath("/httpbin")
+											.addRequestHeader("X-Request-Acme", "ValueB-{sub}")
+											.addRequestHeader("X-Request-Acme", "ValueC-{sub}"))
+									.uri(uri))
 					.build();
 		}
 

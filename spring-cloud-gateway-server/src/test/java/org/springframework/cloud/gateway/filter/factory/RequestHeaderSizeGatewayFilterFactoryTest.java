@@ -16,8 +16,7 @@
 
 package org.springframework.cloud.gateway.filter.factory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringBootConfiguration;
@@ -32,7 +31,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.unit.DataSize;
 import org.springframework.util.unit.DataUnit;
 
@@ -43,7 +41,6 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
  * @author Sakalya Deshpande
  */
 
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @DirtiesContext
 public class RequestHeaderSizeGatewayFilterFactoryTest extends BaseWebClientTests {
@@ -52,8 +49,16 @@ public class RequestHeaderSizeGatewayFilterFactoryTest extends BaseWebClientTest
 			+ "permissible limit. Request Header/s size is \\d*B where permissible limit is \\d*B";
 
 	@Test
-	public void setRequestSizeFilterWorks() {
-		testClient.get().uri("/headers").header("Host", "www.test.org")
+	public void setRequestHeaderSizeFilterWorks() {
+		testClient.get().uri("/headers").header("Host", "www.testrequestheadersizefilter.org")
+				.header("HeaderName", "Some Very Large Header Name").exchange().expectStatus()
+				.isEqualTo(HttpStatus.REQUEST_HEADER_FIELDS_TOO_LARGE).expectHeader()
+				.valueMatches("errorMessage", responseMesssage);
+	}
+
+	@Test
+	public void setRequestHeaderSizeFilterShortcutWorks() {
+		testClient.get().uri("/headers").header("Host", "www.requestheadersize.org")
 				.header("HeaderName", "Some Very Large Header Name").exchange().expectStatus()
 				.isEqualTo(HttpStatus.REQUEST_HEADER_FIELDS_TOO_LARGE).expectHeader()
 				.valueMatches("errorMessage", responseMesssage);
@@ -79,7 +84,7 @@ public class RequestHeaderSizeGatewayFilterFactoryTest extends BaseWebClientTest
 		public RouteLocator testRouteLocator(RouteLocatorBuilder builder) {
 			return builder.routes()
 					.route("test_request_header_size",
-							r -> r.order(-1).host("**.test.org")
+							r -> r.order(-1).host("**.testrequestheadersizefilter.org")
 									.filters(f -> f.setRequestHeaderSize(DataSize.of(46L, DataUnit.BYTES))).uri(uri))
 					.build();
 		}

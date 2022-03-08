@@ -70,19 +70,23 @@
 |spring.cloud.gateway.global-filter.websocket-routing.enabled | `true` | Enables the websocket-routing global filter.
 |spring.cloud.gateway.globalcors.add-to-simple-url-handler-mapping | `false` | If global CORS config should be added to the URL handler.
 |spring.cloud.gateway.globalcors.cors-configurations |  | 
+|spring.cloud.gateway.httpclient.compression | `false` | Enables compression for Netty HttpClient.
 |spring.cloud.gateway.httpclient.connect-timeout |  | The connect timeout in millis, the default is 45s.
 |spring.cloud.gateway.httpclient.max-header-size |  | The max response header size.
 |spring.cloud.gateway.httpclient.max-initial-line-length |  | The max initial line length.
-|spring.cloud.gateway.httpclient.pool.acquire-timeout |  | Only for type FIXED, the maximum time in millis to wait for aquiring.
+|spring.cloud.gateway.httpclient.pool.acquire-timeout |  | Only for type FIXED, the maximum time in millis to wait for acquiring.
+|spring.cloud.gateway.httpclient.pool.eviction-interval | `0` | Perform regular eviction checks in the background at a specified interval. Disabled by default ({@link Duration#ZERO})
 |spring.cloud.gateway.httpclient.pool.max-connections |  | Only for type FIXED, the maximum number of connections before starting pending acquisition on existing ones.
 |spring.cloud.gateway.httpclient.pool.max-idle-time |  | Time in millis after which the channel will be closed. If NULL, there is no max idle time.
 |spring.cloud.gateway.httpclient.pool.max-life-time |  | Duration after which the channel will be closed. If NULL, there is no max life time.
+|spring.cloud.gateway.httpclient.pool.metrics | `false` | Enables channel pools metrics to be collected and registered in Micrometer. Disabled by default.
 |spring.cloud.gateway.httpclient.pool.name | `proxy` | The channel pool map name, defaults to proxy.
 |spring.cloud.gateway.httpclient.pool.type |  | Type of pool for HttpClient to use, defaults to ELASTIC.
 |spring.cloud.gateway.httpclient.proxy.host |  | Hostname for proxy configuration of Netty HttpClient.
 |spring.cloud.gateway.httpclient.proxy.non-proxy-hosts-pattern |  | Regular expression (Java) for a configured list of hosts. that should be reached directly, bypassing the proxy
 |spring.cloud.gateway.httpclient.proxy.password |  | Password for proxy configuration of Netty HttpClient.
 |spring.cloud.gateway.httpclient.proxy.port |  | Port for proxy configuration of Netty HttpClient.
+|spring.cloud.gateway.httpclient.proxy.type |  | proxyType for proxy configuration of Netty HttpClient.
 |spring.cloud.gateway.httpclient.proxy.username |  | Username for proxy configuration of Netty HttpClient.
 |spring.cloud.gateway.httpclient.response-timeout |  | The response timeout.
 |spring.cloud.gateway.httpclient.ssl.close-notify-flush-timeout | `3000ms` | SSL close_notify flush timeout. Default to 3000 ms.

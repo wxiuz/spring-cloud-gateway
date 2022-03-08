@@ -67,6 +67,12 @@ public class RetryGatewayFilterFactory extends AbstractGatewayFilterFactory<Retr
 	}
 
 	@Override
+	public List<String> shortcutFieldOrder() {
+		return Arrays.asList("retries", "statuses", "methods", "backoff.firstBackoff", "backoff.maxBackoff",
+				"backoff.factor", "backoff.basedOnPreviousValue");
+	}
+
+	@Override
 	public GatewayFilter apply(RetryConfig retryConfig) {
 		retryConfig.validate();
 
@@ -85,8 +91,13 @@ public class RetryGatewayFilterFactory extends AbstractGatewayFilterFactory<Retr
 				// null status code might mean a network exception?
 				if (!retryableStatusCode && statusCode != null) {
 					// try the series
-					retryableStatusCode = retryConfig.getSeries().stream()
-							.anyMatch(series -> statusCode.series().equals(series));
+					retryableStatusCode = false;
+					for (int i = 0; i < retryConfig.getSeries().size(); i++) {
+						if (statusCode.series().equals(retryConfig.getSeries().get(i))) {
+							retryableStatusCode = true;
+							break;
+						}
+					}
 				}
 
 				final boolean finalRetryableStatusCode = retryableStatusCode;
@@ -158,10 +169,10 @@ public class RetryGatewayFilterFactory extends AbstractGatewayFilterFactory<Retr
 
 			@Override
 			public String toString() {
-				return filterToStringCreator(RetryGatewayFilterFactory.this).append("retries", retryConfig.getRetries())
-						.append("series", retryConfig.getSeries()).append("statuses", retryConfig.getStatuses())
-						.append("methods", retryConfig.getMethods()).append("exceptions", retryConfig.getExceptions())
-						.toString();
+				return filterToStringCreator(RetryGatewayFilterFactory.this).append("routeId", retryConfig.getRouteId())
+						.append("retries", retryConfig.getRetries()).append("series", retryConfig.getSeries())
+						.append("statuses", retryConfig.getStatuses()).append("methods", retryConfig.getMethods())
+						.append("exceptions", retryConfig.getExceptions()).toString();
 			}
 		};
 	}

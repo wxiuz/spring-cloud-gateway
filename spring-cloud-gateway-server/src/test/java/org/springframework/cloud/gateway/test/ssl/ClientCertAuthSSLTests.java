@@ -25,10 +25,8 @@ import javax.net.ssl.SSLException;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import reactor.netty.http.client.HttpClient;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -37,12 +35,10 @@ import org.springframework.boot.web.server.WebServerException;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.util.ResourceUtils;
 
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @DirtiesContext
 @ActiveProfiles("client-auth-ssl")
@@ -57,7 +53,7 @@ public class ClientCertAuthSSLTests extends SingleCertSSLTests {
 	@Value("${spring.cloud.gateway.httpclient.ssl.key-password}")
 	private String keyPassword;
 
-	@Before
+	@BeforeEach
 	public void setup() throws Exception {
 		KeyStore store = KeyStore.getInstance("JKS");
 
@@ -89,7 +85,6 @@ public class ClientCertAuthSSLTests extends SingleCertSSLTests {
 		}
 	}
 
-	@Ignore // see https://github.com/spring-cloud/spring-cloud-gateway/issues/2022
 	@Test
 	public void testSslTrust() {
 		testClient.get().uri("/ssltrust").exchange().expectStatus().is2xxSuccessful();

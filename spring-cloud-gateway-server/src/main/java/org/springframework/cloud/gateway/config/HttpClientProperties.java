@@ -35,6 +35,7 @@ import javax.validation.constraints.Max;
 
 import reactor.netty.resources.ConnectionProvider;
 import reactor.netty.tcp.SslProvider;
+import reactor.netty.transport.ProxyProvider;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.web.server.WebServerException;
@@ -76,6 +77,9 @@ public class HttpClientProperties {
 
 	/** Enables wiretap debugging for Netty HttpClient. */
 	private boolean wiretap;
+
+	/** Enables compression for Netty HttpClient. */
+	private boolean compression;
 
 	public Integer getConnectTimeout() {
 		return connectTimeout;
@@ -151,6 +155,14 @@ public class HttpClientProperties {
 		this.wiretap = wiretap;
 	}
 
+	public boolean isCompression() {
+		return compression;
+	}
+
+	public void setCompression(boolean compression) {
+		this.compression = compression;
+	}
+
 	@Override
 	public String toString() {
 		// @formatter:off
@@ -164,6 +176,7 @@ public class HttpClientProperties {
 				.append("ssl", ssl)
 				.append("websocket", websocket)
 				.append("wiretap", wiretap)
+				.append("compression", compression)
 				.toString();
 		// @formatter:on
 
@@ -183,7 +196,7 @@ public class HttpClientProperties {
 		 */
 		private Integer maxConnections = ConnectionProvider.DEFAULT_POOL_MAX_CONNECTIONS;
 
-		/** Only for type FIXED, the maximum time in millis to wait for aquiring. */
+		/** Only for type FIXED, the maximum time in millis to wait for acquiring. */
 		private Long acquireTimeout = ConnectionProvider.DEFAULT_POOL_ACQUIRE_TIMEOUT;
 
 		/**
@@ -197,6 +210,18 @@ public class HttpClientProperties {
 		 * time.
 		 */
 		private Duration maxLifeTime = null;
+
+		/**
+		 * Perform regular eviction checks in the background at a specified interval.
+		 * Disabled by default ({@link Duration#ZERO})
+		 */
+		private Duration evictionInterval = Duration.ZERO;
+
+		/**
+		 * Enables channel pools metrics to be collected and registered in Micrometer.
+		 * Disabled by default.
+		 */
+		private boolean metrics = false;
 
 		public PoolType getType() {
 			return type;
@@ -246,11 +271,27 @@ public class HttpClientProperties {
 			this.maxLifeTime = maxLifeTime;
 		}
 
+		public Duration getEvictionInterval() {
+			return evictionInterval;
+		}
+
+		public void setEvictionInterval(Duration evictionInterval) {
+			this.evictionInterval = evictionInterval;
+		}
+
+		public boolean isMetrics() {
+			return metrics;
+		}
+
+		public void setMetrics(boolean metrics) {
+			this.metrics = metrics;
+		}
+
 		@Override
 		public String toString() {
 			return "Pool{" + "type=" + type + ", name='" + name + '\'' + ", maxConnections=" + maxConnections
 					+ ", acquireTimeout=" + acquireTimeout + ", maxIdleTime=" + maxIdleTime + ", maxLifeTime="
-					+ maxLifeTime + '}';
+					+ maxLifeTime + ", evictionInterval=" + evictionInterval + ", metrics=" + metrics + '}';
 		}
 
 		public enum PoolType {
@@ -276,6 +317,9 @@ public class HttpClientProperties {
 
 	public static class Proxy {
 
+		/** proxyType for proxy configuration of Netty HttpClient. */
+		private ProxyProvider.Proxy type = ProxyProvider.Proxy.HTTP;
+
 		/** Hostname for proxy configuration of Netty HttpClient. */
 		private String host;
 
@@ -293,6 +337,14 @@ public class HttpClientProperties {
 		 * reached directly, bypassing the proxy
 		 */
 		private String nonProxyHostsPattern;
+
+		public ProxyProvider.Proxy getType() {
+			return type;
+		}
+
+		public void setType(ProxyProvider.Proxy type) {
+			this.type = type;
+		}
 
 		public String getHost() {
 			return host;
@@ -336,8 +388,9 @@ public class HttpClientProperties {
 
 		@Override
 		public String toString() {
-			return "Proxy{" + "host='" + host + '\'' + ", port=" + port + ", username='" + username + '\''
-					+ ", password='" + password + '\'' + ", nonProxyHostsPattern='" + nonProxyHostsPattern + '\'' + '}';
+			return "Proxy{" + "type='" + type + '\'' + "host='" + host + '\'' + ", port=" + port + ", username='"
+					+ username + '\'' + ", password='" + password + '\'' + ", nonProxyHostsPattern='"
+					+ nonProxyHostsPattern + '\'' + '}';
 		}
 
 	}
@@ -364,6 +417,7 @@ public class HttpClientProperties {
 		private Duration closeNotifyReadTimeout = Duration.ZERO;
 
 		/** The default ssl configuration type. Defaults to TCP. */
+		@Deprecated
 		private SslProvider.DefaultConfigurationType defaultConfigurationType = SslProvider.DefaultConfigurationType.TCP;
 
 		/** Keystore path for Netty HttpClient. */
@@ -529,10 +583,12 @@ public class HttpClientProperties {
 			this.closeNotifyReadTimeout = closeNotifyReadTimeout;
 		}
 
+		@Deprecated
 		public SslProvider.DefaultConfigurationType getDefaultConfigurationType() {
 			return defaultConfigurationType;
 		}
 
+		@Deprecated
 		public void setDefaultConfigurationType(SslProvider.DefaultConfigurationType defaultConfigurationType) {
 			this.defaultConfigurationType = defaultConfigurationType;
 		}

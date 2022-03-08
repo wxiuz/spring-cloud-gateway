@@ -16,8 +16,11 @@
 
 package org.springframework.cloud.gateway.filter.factory;
 
+import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import reactor.core.publisher.Mono;
 
@@ -31,6 +34,10 @@ import org.springframework.cloud.gateway.test.BaseWebClientTests;
 import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -56,33 +63,46 @@ public class SpringCloudCircuitBreakerTestConfig {
 	@Value("${test.uri}")
 	private String uri;
 
-	@RequestMapping("/circuitbreakerFallbackController")
+	@GetMapping("/circuitbreakerFallbackController")
 	public Map<String, String> fallbackcontroller(@RequestParam("a") String a) {
 		return Collections.singletonMap("from", "circuitbreakerfallbackcontroller");
 	}
 
-	@RequestMapping("/circuitbreakerFallbackController2")
+	@GetMapping("/circuitbreakerFallbackController2")
 	public Map<String, String> fallbackcontroller2() {
 		return Collections.singletonMap("from", "circuitbreakerfallbackcontroller2");
 	}
 
-	@RequestMapping("/circuitbreakerFallbackController3")
+	@GetMapping("/circuitbreakerFallbackController3")
 	public Map<String, String> fallbackcontroller3() {
 		return Collections.singletonMap("from", "circuitbreakerfallbackcontroller3");
 	}
 
-	@RequestMapping("/statusCodeFallbackController")
+	@GetMapping("/statusCodeFallbackController")
 	public Map<String, String> statusCodeFallbackController(ServerWebExchange exchange) {
 		return Collections.singletonMap("from", "statusCodeFallbackController");
+	}
+
+	@RequestMapping("/resetExchangeFallbackController")
+	public ResponseEntity<Map<String, String>> resetExchangeFallbackController(ServerWebExchange exchange) {
+		return ResponseEntity.status(HttpStatus.OK)
+				.headers((HttpHeaders) exchange.getRequest().getHeaders().entrySet().stream()
+						.filter(entry -> entry.getKey().startsWith("X-Test-"))
+						.map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey() + "-fallback", entry.getValue()))
+						.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+								(list1, list2) -> Stream.concat(list1.stream(), list2.stream())
+										.collect(Collectors.toList()),
+								HttpHeaders::new)))
+				.body(Collections.singletonMap("from", "resetExchangeFallbackController"));
 	}
 
 	@Bean
 	public RouteLocator circuitBreakerRouteLocator(RouteLocatorBuilder builder) {
 		return builder.routes()
-				.route("circuitbreaker_fallback_forward", r -> r.host("**.circuitbreakerforward.org")
-						.filters(f -> f.circuitBreaker(config -> config.setFallbackUri("forward:/fallback"))).uri(uri))
 				.route("fallback_controller_3",
 						r -> r.path("/fallback").filters(f -> f.setPath("/circuitbreakerFallbackController3")).uri(uri))
+				.route("circuitbreaker_fallback_forward", r -> r.host("**.circuitbreakerforward.org")
+						.filters(f -> f.circuitBreaker(config -> config.setFallbackUri("forward:/fallback"))).uri(uri))
 				.route("circuitbreaker_java",
 						r -> r.host("**.circuitbreakerjava.org")
 								.filters(f -> f.prefixPath("/httpbin").circuitBreaker(
@@ -99,6 +119,14 @@ public class SpringCloudCircuitBreakerTestConfig {
 						r -> r.host("**.circuitbreakerresponsestall.org")
 								.filters(f -> f.prefixPath("/httpbin")
 										.circuitBreaker(config -> config.setName("stalling-command")))
+								.uri(uri))
+				.route("circuitbreaker_fallback_test_reset_exchange",
+						r -> r.host("**.circuitbreakerresetexchange.org").filters(f -> f
+								.circuitBreaker(config -> config.setName("fallbackcmd")
+										.setFallbackUri("forward:/resetExchangeFallbackController"))
+								.filter((exchange, chain) -> chain.filter(exchange)
+										.then(Mono.defer(() -> !exchange.getResponse().isCommitted()
+												? Mono.error(new Exception("Some Random Exception")) : Mono.empty()))))
 								.uri(uri))
 				.build();
 	}

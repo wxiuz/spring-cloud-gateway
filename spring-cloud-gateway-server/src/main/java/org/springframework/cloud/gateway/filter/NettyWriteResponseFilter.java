@@ -121,15 +121,21 @@ public class NettyWriteResponseFilter implements GlobalFilter, Ordered {
 
 	private void cleanup(ServerWebExchange exchange) {
 		Connection connection = exchange.getAttribute(CLIENT_RESPONSE_CONN_ATTR);
-		if (connection != null) {
+		if (connection != null && connection.channel().isActive() && !connection.isPersistent()) {
 			connection.dispose();
 		}
 	}
 
 	// TODO: use framework if possible
-	// TODO: port to WebClientWriteResponseFilter
 	private boolean isStreamingMediaType(@Nullable MediaType contentType) {
-		return (contentType != null && this.streamingMediaTypes.stream().anyMatch(contentType::isCompatibleWith));
+		if (contentType != null) {
+			for (int i = 0; i < streamingMediaTypes.size(); i++) {
+				if (streamingMediaTypes.get(i).isCompatibleWith(contentType)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 }

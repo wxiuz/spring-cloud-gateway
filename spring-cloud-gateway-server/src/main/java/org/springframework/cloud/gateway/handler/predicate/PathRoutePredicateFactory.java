@@ -19,7 +19,6 @@ package org.springframework.cloud.gateway.handler.predicate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.apache.commons.logging.Log;
@@ -33,6 +32,9 @@ import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPattern.PathMatchInfo;
 import org.springframework.web.util.pattern.PathPatternParser;
 
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_PREDICATE_MATCHED_PATH_ATTR;
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_PREDICATE_MATCHED_PATH_ROUTE_ID_ATTR;
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.GATEWAY_PREDICATE_ROUTE_ATTR;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.putUriTemplateVariables;
 import static org.springframework.http.server.PathContainer.parsePath;
 
@@ -89,20 +91,36 @@ public class PathRoutePredicateFactory extends AbstractRoutePredicateFactory<Pat
 			public boolean test(ServerWebExchange exchange) {
 				PathContainer path = parsePath(exchange.getRequest().getURI().getRawPath());
 
-				Optional<PathPattern> optionalPathPattern = pathPatterns.stream()
-						.filter(pattern -> pattern.matches(path)).findFirst();
+				PathPattern match = null;
+				for (int i = 0; i < pathPatterns.size(); i++) {
+					PathPattern pathPattern = pathPatterns.get(i);
+					if (pathPattern.matches(path)) {
+						match = pathPattern;
+						break;
+					}
+				}
 
-				if (optionalPathPattern.isPresent()) {
-					PathPattern pathPattern = optionalPathPattern.get();
-					traceMatch("Pattern", pathPattern.getPatternString(), path, true);
-					PathMatchInfo pathMatchInfo = pathPattern.matchAndExtract(path);
+				if (match != null) {
+					traceMatch("Pattern", match.getPatternString(), path, true);
+					PathMatchInfo pathMatchInfo = match.matchAndExtract(path);
 					putUriTemplateVariables(exchange, pathMatchInfo.getUriVariables());
+					exchange.getAttributes().put(GATEWAY_PREDICATE_MATCHED_PATH_ATTR, match.getPatternString());
+					String routeId = (String) exchange.getAttributes().get(GATEWAY_PREDICATE_ROUTE_ATTR);
+					if (routeId != null) {
+						// populated in RoutePredicateHandlerMapping
+						exchange.getAttributes().put(GATEWAY_PREDICATE_MATCHED_PATH_ROUTE_ID_ATTR, routeId);
+					}
 					return true;
 				}
 				else {
 					traceMatch("Pattern", config.getPatterns(), path, false);
 					return false;
 				}
+			}
+
+			@Override
+			public Object getConfig() {
+				return config;
 			}
 
 			@Override

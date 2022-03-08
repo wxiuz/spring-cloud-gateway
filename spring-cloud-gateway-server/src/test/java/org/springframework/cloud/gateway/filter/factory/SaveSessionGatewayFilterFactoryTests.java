@@ -20,8 +20,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -34,7 +33,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.server.WebSession;
 import org.springframework.web.server.session.WebSessionManager;
 
@@ -43,12 +41,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.web.reactive.function.BodyExtractors.toMono;
 
 /**
  * @author Greg Turnquist
  */
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @DirtiesContext
 @ActiveProfiles(profiles = "save-session-web-filter")
@@ -62,7 +58,7 @@ public class SaveSessionGatewayFilterFactoryTests extends BaseWebClientTests {
 		when(mockWebSession.getAttributes()).thenReturn(new HashMap<>());
 		when(mockWebSession.save()).thenReturn(Mono.empty());
 
-		Mono<Map> result = webClient.get().uri("/get").exchange().flatMap(response -> response.body(toMono(Map.class)));
+		Mono<Map> result = webClient.get().uri("/get").retrieve().bodyToMono(Map.class);
 
 		StepVerifier.create(result).consumeNextWith(response -> {
 			// Don't care about data, just need to catch signal

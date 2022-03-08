@@ -18,8 +18,7 @@ package org.springframework.cloud.gateway.test;
 
 import java.util.Map;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
@@ -28,23 +27,20 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.web.reactive.function.BodyExtractors.toMono;
 
-@RunWith(SpringRunner.class)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @DirtiesContext
 @SuppressWarnings("unchecked")
 // TODO: why does this have to be in a separate test?
-public class PostTests extends BaseWebClientTests {
+class PostTests extends BaseWebClientTests {
 
 	@Test
-	public void postWorks() {
+	void postWorks() {
 		Mono<Map> result = webClient.post().uri("/post").header("Host", "www.example.org").bodyValue("testdata")
-				.exchange().flatMap(response -> response.body(toMono(Map.class)));
+				.retrieve().bodyToMono(Map.class);
 
 		StepVerifier.create(result).consumeNextWith(map -> assertThat(map).containsEntry("data", "testdata"))
 				.expectComplete().verify(DURATION);
@@ -53,7 +49,7 @@ public class PostTests extends BaseWebClientTests {
 	@EnableAutoConfiguration
 	@SpringBootConfiguration
 	@Import(DefaultTestConfig.class)
-	public static class TestConfig {
+	static class TestConfig {
 
 	}
 

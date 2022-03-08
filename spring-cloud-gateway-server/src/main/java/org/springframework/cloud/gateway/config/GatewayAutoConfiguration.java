@@ -20,17 +20,21 @@ import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 import io.netty.channel.ChannelOption;
-import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import reactor.core.publisher.Flux;
+import reactor.netty.http.Http11SslContextSpec;
+import reactor.netty.http.Http2SslContextSpec;
+import reactor.netty.http.HttpProtocol;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.http.client.WebsocketClientSpec;
 import reactor.netty.http.server.WebsocketServerSpec;
 import reactor.netty.resources.ConnectionProvider;
+import reactor.netty.tcp.SslProvider.ProtocolSslContextSpec;
 import reactor.netty.transport.ProxyProvider;
 
 import org.springframework.beans.factory.BeanFactory;
@@ -71,6 +75,7 @@ import org.springframework.cloud.gateway.filter.WeightCalculatorWebFilter;
 import org.springframework.cloud.gateway.filter.factory.AddRequestHeaderGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.AddRequestParameterGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.AddResponseHeaderGatewayFilterFactory;
+import org.springframework.cloud.gateway.filter.factory.CacheRequestBodyGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.DedupeResponseHeaderGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.GatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.MapRequestHeaderGatewayFilterFactory;
@@ -104,8 +109,11 @@ import org.springframework.cloud.gateway.filter.factory.rewrite.MessageBodyEncod
 import org.springframework.cloud.gateway.filter.factory.rewrite.ModifyRequestBodyGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.factory.rewrite.ModifyResponseBodyGatewayFilterFactory;
 import org.springframework.cloud.gateway.filter.headers.ForwardedHeadersFilter;
+import org.springframework.cloud.gateway.filter.headers.GRPCRequestHeadersFilter;
+import org.springframework.cloud.gateway.filter.headers.GRPCResponseHeadersFilter;
 import org.springframework.cloud.gateway.filter.headers.HttpHeadersFilter;
 import org.springframework.cloud.gateway.filter.headers.RemoveHopByHopHeadersFilter;
+import org.springframework.cloud.gateway.filter.headers.TransferEncodingNormalizationHeadersFilter;
 import org.springframework.cloud.gateway.filter.headers.XForwardedHeadersFilter;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.PrincipalNameKeyResolver;
@@ -170,6 +178,8 @@ import static org.springframework.cloud.gateway.config.HttpClientProperties.Pool
 /**
  * @author Spencer Gibb
  * @author Ziemowit Stolarczyk
+ * @author Mete Alpaslan Katırcıoğlu
+ * @author Alberto C. Ríos
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(name = "spring.cloud.gateway.enabled", matchIfMissing = true)
@@ -282,6 +292,23 @@ public class GatewayAutoConfiguration {
 	@ConditionalOnProperty(name = "spring.cloud.gateway.x-forwarded.enabled", matchIfMissing = true)
 	public XForwardedHeadersFilter xForwardedHeadersFilter() {
 		return new XForwardedHeadersFilter();
+	}
+
+	@Bean
+	@ConditionalOnProperty(name = "server.http2.enabled", matchIfMissing = true)
+	public GRPCRequestHeadersFilter gRPCRequestHeadersFilter() {
+		return new GRPCRequestHeadersFilter();
+	}
+
+	@Bean
+	@ConditionalOnProperty(name = "server.http2.enabled", matchIfMissing = true)
+	public GRPCResponseHeadersFilter gRPCResponseHeadersFilter() {
+		return new GRPCResponseHeadersFilter();
+	}
+
+	@Bean
+	public TransferEncodingNormalizationHeadersFilter transferEncodingNormalizationHeadersFilter() {
+		return new TransferEncodingNormalizationHeadersFilter();
 	}
 
 	// GlobalFilter beans
@@ -466,6 +493,12 @@ public class GatewayAutoConfiguration {
 
 	@Bean
 	@ConditionalOnEnabledFilter
+	public CacheRequestBodyGatewayFilterFactory cacheRequestBodyGatewayFilterFactory() {
+		return new CacheRequestBodyGatewayFilterFactory();
+	}
+
+	@Bean
+	@ConditionalOnEnabledFilter
 	public PrefixPathGatewayFilterFactory prefixPathGatewayFilterFactory() {
 		return new PrefixPathGatewayFilterFactory();
 	}
@@ -632,39 +665,11 @@ public class GatewayAutoConfiguration {
 
 		@Bean
 		@ConditionalOnMissingBean
-		public HttpClient gatewayHttpClient(HttpClientProperties properties, List<HttpClientCustomizer> customizers) {
+		public HttpClient gatewayHttpClient(HttpClientProperties properties, ServerProperties serverProperties,
+				List<HttpClientCustomizer> customizers) {
 
 			// configure pool resources
-			HttpClientProperties.Pool pool = properties.getPool();
-
-			ConnectionProvider connectionProvider;
-			if (pool.getType() == DISABLED) {
-				connectionProvider = ConnectionProvider.newConnection();
-			}
-			else if (pool.getType() == FIXED) {
-				ConnectionProvider.Builder builder = ConnectionProvider.builder(pool.getName())
-						.maxConnections(pool.getMaxConnections()).pendingAcquireMaxCount(-1)
-						.pendingAcquireTimeout(Duration.ofMillis(pool.getAcquireTimeout()));
-				if (pool.getMaxIdleTime() != null) {
-					builder.maxIdleTime(pool.getMaxIdleTime());
-				}
-				if (pool.getMaxLifeTime() != null) {
-					builder.maxLifeTime(pool.getMaxLifeTime());
-				}
-				connectionProvider = builder.build();
-			}
-			else {
-				ConnectionProvider.Builder builder = ConnectionProvider.builder(pool.getName())
-						.maxConnections(Integer.MAX_VALUE).pendingAcquireTimeout(Duration.ofMillis(0))
-						.pendingAcquireMaxCount(-1);
-				if (pool.getMaxIdleTime() != null) {
-					builder.maxIdleTime(pool.getMaxIdleTime());
-				}
-				if (pool.getMaxLifeTime() != null) {
-					builder.maxLifeTime(pool.getMaxLifeTime());
-				}
-				connectionProvider = builder.build();
-			}
+			ConnectionProvider connectionProvider = buildConnectionProvider(properties);
 
 			HttpClient httpClient = HttpClient.create(connectionProvider)
 					// TODO: move customizations to HttpClientCustomizers
@@ -678,58 +683,66 @@ public class GatewayAutoConfiguration {
 							spec.maxInitialLineLength((int) properties.getMaxInitialLineLength().toBytes());
 						}
 						return spec;
-					}).tcpConfiguration(tcpClient -> {
-
-						if (properties.getConnectTimeout() != null) {
-							tcpClient = tcpClient.option(ChannelOption.CONNECT_TIMEOUT_MILLIS,
-									properties.getConnectTimeout());
-						}
-
-						// configure proxy if proxy host is set.
-						HttpClientProperties.Proxy proxy = properties.getProxy();
-
-						if (StringUtils.hasText(proxy.getHost())) {
-
-							tcpClient = tcpClient.proxy(proxySpec -> {
-								ProxyProvider.Builder builder = proxySpec.type(ProxyProvider.Proxy.HTTP)
-										.host(proxy.getHost());
-
-								PropertyMapper map = PropertyMapper.get();
-
-								map.from(proxy::getPort).whenNonNull().to(builder::port);
-								map.from(proxy::getUsername).whenHasText().to(builder::username);
-								map.from(proxy::getPassword).whenHasText()
-										.to(password -> builder.password(s -> password));
-								map.from(proxy::getNonProxyHostsPattern).whenHasText().to(builder::nonProxyHosts);
-							});
-						}
-						return tcpClient;
 					});
+
+			if (serverProperties.getHttp2().isEnabled()) {
+				httpClient = httpClient.protocol(HttpProtocol.HTTP11, HttpProtocol.H2);
+			}
+
+			if (properties.getConnectTimeout() != null) {
+				httpClient = httpClient.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, properties.getConnectTimeout());
+			}
+
+			// configure proxy if proxy host is set.
+			if (StringUtils.hasText(properties.getProxy().getHost())) {
+				HttpClientProperties.Proxy proxy = properties.getProxy();
+
+				httpClient = httpClient.proxy(proxySpec -> {
+					ProxyProvider.Builder builder = proxySpec.type(proxy.getType()).host(proxy.getHost());
+
+					PropertyMapper map = PropertyMapper.get();
+
+					map.from(proxy::getPort).whenNonNull().to(builder::port);
+					map.from(proxy::getUsername).whenHasText().to(builder::username);
+					map.from(proxy::getPassword).whenHasText().to(password -> builder.password(s -> password));
+					map.from(proxy::getNonProxyHostsPattern).whenHasText().to(builder::nonProxyHosts);
+				});
+			}
 
 			HttpClientProperties.Ssl ssl = properties.getSsl();
 			if ((ssl.getKeyStore() != null && ssl.getKeyStore().length() > 0)
 					|| ssl.getTrustedX509CertificatesForTrustManager().length > 0 || ssl.isUseInsecureTrustManager()) {
 				httpClient = httpClient.secure(sslContextSpec -> {
 					// configure ssl
-					SslContextBuilder sslContextBuilder = SslContextBuilder.forClient();
+					ProtocolSslContextSpec clientSslContext = (serverProperties.getHttp2().isEnabled())
+							? Http2SslContextSpec.forClient() : Http11SslContextSpec.forClient();
+					clientSslContext.configure(sslContextBuilder -> {
+						X509Certificate[] trustedX509Certificates = ssl.getTrustedX509CertificatesForTrustManager();
+						if (trustedX509Certificates.length > 0) {
+							sslContextBuilder.trustManager(trustedX509Certificates);
+						}
+						else if (ssl.isUseInsecureTrustManager()) {
+							sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+						}
 
-					X509Certificate[] trustedX509Certificates = ssl.getTrustedX509CertificatesForTrustManager();
-					if (trustedX509Certificates.length > 0) {
-						sslContextBuilder = sslContextBuilder.trustManager(trustedX509Certificates);
-					}
-					else if (ssl.isUseInsecureTrustManager()) {
-						sslContextBuilder = sslContextBuilder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-					}
+						try {
+							sslContextBuilder.keyManager(ssl.getKeyManagerFactory());
+						}
+						catch (Exception e) {
+							logger.error(e);
+						}
+					});
 
-					try {
-						sslContextBuilder = sslContextBuilder.keyManager(ssl.getKeyManagerFactory());
-					}
-					catch (Exception e) {
-						logger.error(e);
-					}
-
-					sslContextSpec.sslContext(sslContextBuilder).defaultConfiguration(ssl.getDefaultConfigurationType())
-							.handshakeTimeout(ssl.getHandshakeTimeout())
+					sslContextSpec.sslContext(clientSslContext).handshakeTimeout(ssl.getHandshakeTimeout())
+							.closeNotifyFlushTimeout(ssl.getCloseNotifyFlushTimeout())
+							.closeNotifyReadTimeout(ssl.getCloseNotifyReadTimeout());
+				});
+			}
+			else if (serverProperties.getHttp2().isEnabled()) {
+				httpClient = httpClient.secure(sslContextSpec -> {
+					Http2SslContextSpec clientSslCtxt = Http2SslContextSpec.forClient()
+							.configure(builder -> builder.trustManager(InsecureTrustManagerFactory.INSTANCE));
+					sslContextSpec.sslContext(clientSslCtxt).handshakeTimeout(ssl.getHandshakeTimeout())
 							.closeNotifyFlushTimeout(ssl.getCloseNotifyFlushTimeout())
 							.closeNotifyReadTimeout(ssl.getCloseNotifyReadTimeout());
 				});
@@ -737,6 +750,10 @@ public class GatewayAutoConfiguration {
 
 			if (properties.isWiretap()) {
 				httpClient = httpClient.wiretap(true);
+			}
+
+			if (properties.isCompression()) {
+				httpClient = httpClient.compress(true);
 			}
 
 			if (!CollectionUtils.isEmpty(customizers)) {
@@ -747,6 +764,39 @@ public class GatewayAutoConfiguration {
 			}
 
 			return httpClient;
+		}
+
+		private ConnectionProvider buildConnectionProvider(HttpClientProperties properties) {
+			HttpClientProperties.Pool pool = properties.getPool();
+
+			ConnectionProvider connectionProvider;
+			if (pool.getType() == DISABLED) {
+				connectionProvider = ConnectionProvider.newConnection();
+			}
+			else {
+				// create either Fixed or Elastic pool
+				ConnectionProvider.Builder builder = ConnectionProvider.builder(pool.getName());
+				if (pool.getType() == FIXED) {
+					builder.maxConnections(pool.getMaxConnections()).pendingAcquireMaxCount(-1)
+							.pendingAcquireTimeout(Duration.ofMillis(pool.getAcquireTimeout()));
+				}
+				else {
+					// Elastic
+					builder.maxConnections(Integer.MAX_VALUE).pendingAcquireTimeout(Duration.ofMillis(0))
+							.pendingAcquireMaxCount(-1);
+				}
+
+				if (pool.getMaxIdleTime() != null) {
+					builder.maxIdleTime(pool.getMaxIdleTime());
+				}
+				if (pool.getMaxLifeTime() != null) {
+					builder.maxLifeTime(pool.getMaxLifeTime());
+				}
+				builder.evictInBackground(pool.getEvictionInterval());
+				builder.metrics(pool.isMetrics());
+				connectionProvider = builder.build();
+			}
+			return connectionProvider;
 		}
 
 		@Bean
@@ -771,12 +821,15 @@ public class GatewayAutoConfiguration {
 		@ConditionalOnEnabledGlobalFilter(WebsocketRoutingFilter.class)
 		public ReactorNettyWebSocketClient reactorNettyWebSocketClient(HttpClientProperties properties,
 				HttpClient httpClient) {
-			WebsocketClientSpec.Builder builder = WebsocketClientSpec.builder()
-					.handlePing(properties.getWebsocket().isProxyPing());
-			if (properties.getWebsocket().getMaxFramePayloadLength() != null) {
-				builder.maxFramePayloadLength(properties.getWebsocket().getMaxFramePayloadLength());
-			}
-			return new ReactorNettyWebSocketClient(httpClient, builder);
+			Supplier<WebsocketClientSpec.Builder> builderSupplier = () -> {
+				WebsocketClientSpec.Builder builder = WebsocketClientSpec.builder()
+						.handlePing(properties.getWebsocket().isProxyPing());
+				if (properties.getWebsocket().getMaxFramePayloadLength() != null) {
+					builder.maxFramePayloadLength(properties.getWebsocket().getMaxFramePayloadLength());
+				}
+				return builder;
+			};
+			return new ReactorNettyWebSocketClient(httpClient, builderSupplier);
 		}
 
 		@Bean
@@ -784,13 +837,16 @@ public class GatewayAutoConfiguration {
 		public ReactorNettyRequestUpgradeStrategy reactorNettyRequestUpgradeStrategy(
 				HttpClientProperties httpClientProperties) {
 
-			WebsocketServerSpec.Builder builder = WebsocketServerSpec.builder();
-			HttpClientProperties.Websocket websocket = httpClientProperties.getWebsocket();
-			PropertyMapper map = PropertyMapper.get();
-			map.from(websocket::getMaxFramePayloadLength).whenNonNull().to(builder::maxFramePayloadLength);
-			map.from(websocket::isProxyPing).to(builder::handlePing);
+			Supplier<WebsocketServerSpec.Builder> builderSupplier = () -> {
+				WebsocketServerSpec.Builder builder = WebsocketServerSpec.builder();
+				HttpClientProperties.Websocket websocket = httpClientProperties.getWebsocket();
+				PropertyMapper map = PropertyMapper.get();
+				map.from(websocket::getMaxFramePayloadLength).whenNonNull().to(builder::maxFramePayloadLength);
+				map.from(websocket::isProxyPing).to(builder::handlePing);
+				return builder;
+			};
 
-			return new ReactorNettyRequestUpgradeStrategy(builder);
+			return new ReactorNettyRequestUpgradeStrategy(builderSupplier);
 		}
 
 	}

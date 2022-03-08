@@ -44,7 +44,7 @@ import org.springframework.core.ResolvableType;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.http.server.reactive.HttpHandler;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.DispatcherHandler;
 import org.springframework.web.reactive.config.EnableWebFlux;
@@ -54,7 +54,6 @@ import org.springframework.web.server.adapter.WebHttpHandlerBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.core.ResolvableType.forClassWithGenerics;
 import static org.springframework.http.MediaType.TEXT_EVENT_STREAM;
-import static org.springframework.web.reactive.function.BodyExtractors.toFlux;
 
 /**
  * @author Sebastien Deleuze
@@ -124,16 +123,16 @@ public class SseIntegrationTests {
 
 	@Test
 	public void sseAsString() {
-		Flux<String> result = this.webClient.get().uri("/string").accept(TEXT_EVENT_STREAM).exchange()
-				.flatMapMany(response -> response.bodyToFlux(String.class));
+		Flux<String> result = this.webClient.get().uri("/string").accept(TEXT_EVENT_STREAM).retrieve()
+				.bodyToFlux(String.class);
 
 		StepVerifier.create(result).expectNext("foo 0").expectNext("foo 1").thenCancel().verify(Duration.ofSeconds(5L));
 	}
 
 	@Test
 	public void sseAsPerson() {
-		Flux<Person> result = this.webClient.get().uri("/person").accept(TEXT_EVENT_STREAM).exchange()
-				.flatMapMany(response -> response.bodyToFlux(Person.class));
+		Flux<Person> result = this.webClient.get().uri("/person").accept(TEXT_EVENT_STREAM).retrieve()
+				.bodyToFlux(Person.class);
 
 		StepVerifier.create(result).expectNext(new Person("foo 0")).expectNext(new Person("foo 1")).thenCancel()
 				.verify(Duration.ofSeconds(5L));
@@ -143,10 +142,9 @@ public class SseIntegrationTests {
 	@SuppressWarnings("Duplicates")
 	public void sseAsEvent() {
 		ResolvableType type = forClassWithGenerics(ServerSentEvent.class, String.class);
-		Flux<ServerSentEvent<String>> result = this.webClient.get().uri("/event").accept(TEXT_EVENT_STREAM).exchange()
-				.flatMapMany(
-						response -> response.body(toFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
-						})));
+		Flux<ServerSentEvent<String>> result = this.webClient.get().uri("/event").accept(TEXT_EVENT_STREAM).retrieve()
+				.bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
+				});
 
 		StepVerifier.create(result).consumeNextWith(event -> {
 			assertThat(event.id()).isEqualTo("0");
@@ -166,10 +164,9 @@ public class SseIntegrationTests {
 	@Test
 	@SuppressWarnings("Duplicates")
 	public void sseAsEventWithoutAcceptHeader() {
-		Flux<ServerSentEvent<String>> result = this.webClient.get().uri("/event").accept(TEXT_EVENT_STREAM).exchange()
-				.flatMapMany(
-						response -> response.body(toFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
-						})));
+		Flux<ServerSentEvent<String>> result = this.webClient.get().uri("/event").accept(TEXT_EVENT_STREAM).retrieve()
+				.bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {
+				});
 
 		StepVerifier.create(result).consumeNextWith(event -> {
 			assertThat(event.id()).isEqualTo("0");
@@ -192,17 +189,17 @@ public class SseIntegrationTests {
 
 		private static final Flux<Long> INTERVAL = interval(Duration.ofMillis(100), 50);
 
-		@RequestMapping("/sse/string")
+		@GetMapping("/sse/string")
 		Flux<String> string() {
 			return INTERVAL.map(l -> "foo " + l);
 		}
 
-		@RequestMapping("/sse/person")
+		@GetMapping("/sse/person")
 		Flux<Person> person() {
 			return INTERVAL.map(l -> new Person("foo " + l));
 		}
 
-		@RequestMapping("/sse/event")
+		@GetMapping("/sse/event")
 		Flux<ServerSentEvent<String>> sse() {
 			return INTERVAL.map(l -> ServerSentEvent.builder("foo").id(Long.toString(l)).comment("bar").build());
 		}

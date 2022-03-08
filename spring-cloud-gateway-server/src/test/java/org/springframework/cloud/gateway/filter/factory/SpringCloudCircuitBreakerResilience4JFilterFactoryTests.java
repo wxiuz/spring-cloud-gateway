@@ -16,8 +16,7 @@
 
 package org.springframework.cloud.gateway.filter.factory;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
@@ -31,10 +30,11 @@ import org.springframework.cloud.gateway.test.BaseWebClientTests;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.reactive.function.BodyInserters;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.core.StringContains.containsString;
@@ -43,9 +43,8 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 /**
  * @author Ryan Baxter
  */
-@RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment = RANDOM_PORT,
-		properties = { "debug=true", "spring.cloud.circuitbreaker.hystrix.enabled=false" })
+@SpringBootTest(webEnvironment = RANDOM_PORT, properties = { "logging.level.org.springframework.cloud.gateway=TRACE",
+		"debug=true", "spring.cloud.circuitbreaker.hystrix.enabled=false" })
 @ContextConfiguration(classes = SpringCloudCircuitBreakerResilience4JFilterFactoryTests.Config.class)
 @DirtiesContext
 public class SpringCloudCircuitBreakerResilience4JFilterFactoryTests
@@ -83,6 +82,14 @@ public class SpringCloudCircuitBreakerResilience4JFilterFactoryTests
 		GatewayFilter filter = new SpringCloudCircuitBreakerResilience4JFilterFactory(
 				new ReactiveResilience4JCircuitBreakerFactory(), null).apply(config);
 		assertThat(filter.toString()).contains("myname").contains("forward:/myfallback");
+	}
+
+	@Test
+	public void testHeadersAreClearedOnFallback() {
+		testClient.post().uri("/responseheaders/502").body(BodyInserters.fromFormData("name-1", "value-1"))
+				.header("Host", "www.circuitbreakerresetexchange.org").header("X-Test-Header-1", "value1")
+				.accept(MediaType.APPLICATION_JSON).exchange().expectStatus().isOk().expectHeader()
+				.doesNotExist("X-Test-Header-1").expectHeader().valueEquals("X-Test-Header-1-fallback", "value1");
 	}
 
 	@EnableAutoConfiguration
