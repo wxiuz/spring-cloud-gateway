@@ -41,7 +41,7 @@
 	</fileSets>
 	<files>
 		<file>
-			<source>target/kylin-gateway-3.1.0.jar</source>
+			<source>target/kylin-gateway-3.1.1.jar</source>
 			<outputDirectory>server</outputDirectory>
 			<fileMode>0644</fileMode>
 			<destName>gateway.jar</destName>
