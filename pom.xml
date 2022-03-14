@@ -58,6 +58,7 @@
 		<spring-cloud-commons.version>3.1.1</spring-cloud-commons.version>
 		<testcontainers.version>1.16.3</testcontainers.version>
 		<log4j.version>2.17.1</log4j.version>
+		<tomcat.version>9.0.58</tomcat.version>
 	</properties>
 
 	<dependencyManagement>
@@ -195,6 +196,21 @@
 				<groupId>ch.qos.logback</groupId>
 				<artifactId>logback-classic</artifactId>
 				<version>1.2.8</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-core</artifactId>
+				<version>${tomcat.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-el</artifactId>
+				<version>${tomcat.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-websocket</artifactId>
+				<version>${tomcat.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
