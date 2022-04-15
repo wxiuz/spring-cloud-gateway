@@ -59,10 +59,45 @@
 		<testcontainers.version>1.16.3</testcontainers.version>
 		<log4j.version>2.17.1</log4j.version>
 		<tomcat.version>9.0.58</tomcat.version>
+		<spring.version>5.3.18</spring.version>
+		<guava.version>30.1.1-android</guava.version>
+		<commons-io.version>2.7</commons-io.version>
+		<mysql.version>8.0.28</mysql.version>
+		<netty.version>4.1.76.Final</netty.version>
 	</properties>
 
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-expression</artifactId>
+				<version>${spring.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-context</artifactId>
+				<version>${spring.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-context-support</artifactId>
+				<version>${spring.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.google.guava</groupId>
+				<artifactId>guava</artifactId>
+				<version>${guava.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>commons-io</groupId>
+				<artifactId>commons-io</artifactId>
+				<version>${commons-io.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>mysql</groupId>
+				<artifactId>mysql-connector-java</artifactId>
+				<version>${mysql.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
 				<artifactId>spring-cloud-gateway-dependencies</artifactId>
@@ -130,67 +165,67 @@
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec-http</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-common</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-buffer</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-transport</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-handler</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec-http2</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-resolver-dns</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-resolver</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec-dns</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-transport-native-unix-common</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-handler-proxy</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-codec-socks</artifactId>
-				<version>4.1.71.Final</version>
+				<version>${netty.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
