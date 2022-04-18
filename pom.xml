@@ -64,10 +64,16 @@
 		<commons-io.version>2.7</commons-io.version>
 		<mysql.version>8.0.28</mysql.version>
 		<netty.version>4.1.76.Final</netty.version>
+		<protobuf.version>3.19.3</protobuf.version>
 	</properties>
 
 	<dependencyManagement>
 		<dependencies>
+			<dependency>
+				<groupId>com.google.protobuf</groupId>
+				<artifactId>protobuf-java</artifactId>
+				<version>${protobuf.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.springframework</groupId>
 				<artifactId>spring-expression</artifactId>
