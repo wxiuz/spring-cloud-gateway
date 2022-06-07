@@ -45,6 +45,17 @@ kylin:
       refresh-interval: 3s
     ke:
       version: 4x
+      authentication-url: /kylin/api/user/authentication
+    rest-template:
+      connect-timeout: 2000
+      read-timeout: 5000
+      pool:
+        max-total: 20
+        max-per-route: 2
+    username-cache:
+      expire: 1800
+      concurrency-level: 10
+      maximum-size: 3000
     health:
       check-url: /kylin/api/health
       rest-template:

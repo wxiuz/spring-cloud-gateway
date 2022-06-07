@@ -6,6 +6,7 @@ import io.kyligence.kap.gateway.persistent.domain.Kylin3XRouteDO;
 import io.kyligence.kap.gateway.persistent.domain.KylinRouteTableDO;
 import io.kyligence.kap.gateway.persistent.domain.RouteDO;
 import io.kyligence.kap.gateway.utils.JsonUtil;
+import java.util.Objects;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +32,8 @@ public class KylinRouteRaw {
 	private int order = 0;
 
 	private String cluster;
+
+	private List<String> username;
 
 	public static KylinRouteRaw convert(Kylin3XRouteDO kylin3XRouteDO) {
 		if (null == kylin3XRouteDO) {
@@ -73,7 +76,7 @@ public class KylinRouteRaw {
 		KylinRouteRaw kylinRouteRaw = new KylinRouteRaw();
 
 		kylinRouteRaw.setId(kylinRouteDO.getId());
-		kylinRouteRaw.setOrder(0);
+		kylinRouteRaw.setOrder(Objects.isNull(kylinRouteDO.getOrder()) ? 0 : kylinRouteDO.getOrder());
 
 		kylinRouteRaw.setCluster(kylinRouteDO.getClusterId());
 		kylinRouteRaw.setBackends(kylinRouteDO.getBackends());
@@ -82,6 +85,7 @@ public class KylinRouteRaw {
 		kylinRouteRaw.setType(kylinRouteDO.getType());
 
 		kylinRouteRaw.setResourceGroup(kylinRouteDO.getResourceGroup());
+		kylinRouteRaw.setUsername(kylinRouteDO.getUsername());
 
 		return kylinRouteRaw;
 	}

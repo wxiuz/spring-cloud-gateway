@@ -147,6 +147,7 @@ public class KylinRoutePredicateFactory
 
 				exchange.getAttributes().put(PROJECT_FLAG, "");
 
+				// 参考 https://olapio.atlassian.net/browse/KM-1399
 				if (exchange.getRequest().getMethod() == HttpMethod.GET) {
 					return Mono.just(false);
 				}

@@ -41,6 +41,10 @@ public class KylinRouteTableDO {
 
 		private String resourceGroup;
 
+		private List<String> username;
+
+		private Integer order;
+
 		@Override
 		public String toString() {
 			return JsonUtil.toJson(this);
