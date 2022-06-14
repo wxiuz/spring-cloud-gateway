@@ -1,6 +1,7 @@
 package io.kyligence.kap.gateway.route;
 
 import com.netflix.loadbalancer.Server;
+import io.kyligence.kap.gateway.cache.GlobalKylinBalancerCache;
 import io.kyligence.kap.gateway.config.GlobalConfig;
 import io.kyligence.kap.gateway.constant.KylinGatewayVersion;
 import io.kyligence.kap.gateway.entity.KylinRouteRaw;
@@ -53,6 +54,9 @@ public class KylinRefreshRouteTableScheduler implements ApplicationEventPublishe
 
 	@Autowired
 	private RouteTableTransformer routeTableTransformer;
+
+	@Autowired
+	private GlobalKylinBalancerCache kylinBalancerCache;
 
 	public KylinRefreshRouteTableScheduler(IRouteTableReader routeTableReader,
 										   AbstractGatewayControllerEndpoint gatewayControllerEndpoint,
@@ -110,6 +114,8 @@ public class KylinRefreshRouteTableScheduler implements ApplicationEventPublishe
 
 			this.loadBalancerClientFilter.updateResourceGroups(
 					routeTable.getLoadBalancerList(), globalConfig.getLastValidRawRouteTableMvcc().get());
+			// 与Filter共用相同的Balancer
+			this.kylinBalancerCache.updateKylinBalancer(routeTable.getLoadBalancerList());
 
 			globalConfig.getLastValidRawRouteTableMvcc().incrementAndGet();
 			globalConfig.setLastValidRawRouteTable(rawRouteTable);

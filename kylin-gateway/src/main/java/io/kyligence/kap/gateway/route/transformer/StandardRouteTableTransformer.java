@@ -13,6 +13,11 @@ import io.kyligence.kap.gateway.entity.KylinRouteRaw;
 import io.kyligence.kap.gateway.entity.KylinRouteTable;
 import io.kyligence.kap.gateway.filter.KylinLoadBalancer;
 import io.kyligence.kap.gateway.health.KylinPing;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
@@ -22,17 +27,14 @@ import org.springframework.cloud.gateway.handler.predicate.PredicateDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.stereotype.Component;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import static io.kyligence.kap.gateway.constant.KylinRouteConstant.DEFAULT_RESOURCE_GROUP;
 import static io.kyligence.kap.gateway.constant.KylinRouteConstant.GLOBAL_RESOURCE_GROUP;
 import static io.kyligence.kap.gateway.constant.KylinRouteConstant.KYLIN_GLOBAL_ROUTE_PREDICATE;
 import static io.kyligence.kap.gateway.constant.KylinRouteConstant.KYLIN_ROUTE_PREDICATE;
+import static io.kyligence.kap.gateway.constant.KylinRouteConstant.KYLIN_USER_ROUTE_PREDICATE;
 import static io.kyligence.kap.gateway.constant.KylinRouteConstant.PREDICATE_ARG_KEY_0;
+import static io.kyligence.kap.gateway.constant.KylinRouteConstant.PREDICATE_ARG_KEY_1;
+import static io.kyligence.kap.gateway.constant.KylinRouteConstant.PREDICATE_ARG_KEY_2;
 
 @Slf4j
 @ConditionalOnProperty(name = "kylin.gateway.ke.version", havingValue = KylinGatewayVersion.KYLIN_4X)
@@ -80,8 +82,9 @@ public class StandardRouteTableTransformer implements RouteTableTransformer {
 		RouteDefinition routeDefinition = new RouteDefinition();
 
 		String uuid = String.valueOf(rawRoute.getId());
+		String serviceId = getServiceId(rawRoute);
 		routeDefinition.setId(uuid);
-		routeDefinition.setUri(new URI(getStringURIByServiceId(getServiceId(rawRoute))));
+		routeDefinition.setUri(new URI(getStringURIByServiceId(serviceId)));
 
 		PredicateDefinition predicateDefinition = new PredicateDefinition();
 		routeDefinition.setPredicates(Lists.newArrayList(predicateDefinition));
@@ -89,9 +92,17 @@ public class StandardRouteTableTransformer implements RouteTableTransformer {
 		KylinResourceGroupTypeEnum resourceGroupTypeEnum = KylinResourceGroupTypeEnum.valueOf(rawRoute.getType());
 		switch (resourceGroupTypeEnum) {
 			case QUERY:
-				predicateDefinition.setName(KYLIN_ROUTE_PREDICATE);
 				predicateDefinition.getArgs().put(PREDICATE_ARG_KEY_0, rawRoute.getProject());
 				routeDefinition.setOrder(rawRoute.getOrder());
+				if (CollectionUtils.isEmpty(rawRoute.getUsername())) {
+					predicateDefinition.setName(KYLIN_ROUTE_PREDICATE);
+				} else {
+					// 用户级别的路由
+					predicateDefinition.setName(KYLIN_USER_ROUTE_PREDICATE);
+					String username = org.springframework.util.StringUtils.collectionToCommaDelimitedString(rawRoute.getUsername());
+					predicateDefinition.getArgs().put(PREDICATE_ARG_KEY_1, username);
+					predicateDefinition.getArgs().put(PREDICATE_ARG_KEY_2, serviceId);
+				}
 				break;
 			case DEFAULT:
 				predicateDefinition.setName("Path");

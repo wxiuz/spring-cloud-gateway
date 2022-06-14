@@ -1,8 +1,10 @@
 package io.kyligence.kap.gateway.config;
 
+import io.kyligence.kap.gateway.constant.KylinGatewayVersion;
 import io.kyligence.kap.gateway.exception.KylinErrorAttributes;
 import io.kyligence.kap.gateway.filter.KylinRedirectToGatewayFilter;
 import io.kyligence.kap.gateway.predicate.KylinGlobalRoutePredicateFactory;
+import io.kyligence.kap.gateway.predicate.KylinUserRoutePredicateFactory;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -31,6 +33,12 @@ public class KylinGatewayAutoConfiguration {
 	@Bean
 	public KylinRoutePredicateFactory kylinRoutePredicateFactory() {
 		return new KylinRoutePredicateFactory();
+	}
+
+	@Bean
+	@ConditionalOnProperty(name = "kylin.gateway.ke.version", havingValue = KylinGatewayVersion.KYLIN_4X)
+	public KylinUserRoutePredicateFactory kylinUserRoutePredicateFactory() {
+		return new KylinUserRoutePredicateFactory();
 	}
 
 	@Bean

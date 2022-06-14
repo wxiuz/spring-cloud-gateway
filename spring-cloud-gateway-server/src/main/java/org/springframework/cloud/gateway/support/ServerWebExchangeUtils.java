@@ -58,6 +58,10 @@ public final class ServerWebExchangeUtils {
 
 	public static final String PROJECT_KEY = "project";
 
+	public static final String USERNAME_KEY = "username";
+
+	public static final String SERVICE_ID_KEY = "serviceId";
+
 	public static final String PROJECTS_KEY = "projects";
 
 	public static final String PROJECT_FLAG = "project_flag";

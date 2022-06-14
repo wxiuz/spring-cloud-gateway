@@ -8,11 +8,15 @@ public class KylinRouteConstant {
 
 	public static final String KYLIN_ROUTE_PREDICATE = "Kylin";
 
+	public static final String KYLIN_USER_ROUTE_PREDICATE = "KylinUser";
+
 	public static final String KYLIN_GLOBAL_ROUTE_PREDICATE = "KylinGlobal";
 
 	public static final String PREDICATE_ARG_KEY_0 = "_genkey_0";
 
 	public static final String PREDICATE_ARG_KEY_1 = "_genkey_1";
+
+	public static final String PREDICATE_ARG_KEY_2 = "_genkey_2";
 
 	public static final String ASYNC_QUERY_SUFFIX = "/api/async_query";
 
