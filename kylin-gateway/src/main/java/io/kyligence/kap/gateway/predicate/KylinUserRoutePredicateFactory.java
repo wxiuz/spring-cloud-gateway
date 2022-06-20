@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -145,7 +144,11 @@ public class KylinUserRoutePredicateFactory
 		}
 
 		Set<String> usernameSet = StringUtils.commaDelimitedListToSet(config.getUsername());
-		return usernameSet.contains(username);
+		// 如果匹配到了当前资源组，那么检查一下当前资源组下是否有存活的实例，如果没有，则走项目级别的默认资源组
+		if (usernameSet.contains(username) && chooseServer(config) != null) {
+			return true;
+		}
+		return false;
 	}
 
 	private boolean testProjectsAndMark(ServerWebExchange exchange, Config config, List<String> projects) {
@@ -357,12 +360,7 @@ public class KylinUserRoutePredicateFactory
 		httpHeaders.add(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON_UTF8);
 		httpHeaders.add(HttpHeaders.COOKIE, cookies);
 
-		KylinLoadBalancer kylinLoadBalancer = balancerCache.getKylinBalancer().get(config.getServiceId());
-		if (kylinLoadBalancer == null) {
-			return null;
-		}
-
-		Server server = kylinLoadBalancer.chooseServer(SERVER_DEFAULT_HINT);
+		Server server = chooseServer(config);
 		if (server == null) {
 			return null;
 		}
@@ -377,6 +375,14 @@ public class KylinUserRoutePredicateFactory
 			}
 		}
 		return null;
+	}
+
+	private Server chooseServer(Config config) {
+		KylinLoadBalancer kylinLoadBalancer = balancerCache.getKylinBalancer().get(config.getServiceId());
+		if (kylinLoadBalancer == null) {
+			return null;
+		}
+		return kylinLoadBalancer.chooseServer(SERVER_DEFAULT_HINT);
 	}
 
 	@Data
