@@ -50,7 +50,7 @@ kylin:
       connect-timeout: 2000
       read-timeout: 5000
       pool:
-        max-total: 20
+        max-total: 50
         max-per-route: 2
     username-cache:
       expire: 1800
