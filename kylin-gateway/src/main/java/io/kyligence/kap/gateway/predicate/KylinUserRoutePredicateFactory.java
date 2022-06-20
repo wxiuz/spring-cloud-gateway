@@ -114,8 +114,8 @@ public class KylinUserRoutePredicateFactory
 	public void init() {
 		cache = CacheBuilder.newBuilder()
 				.concurrencyLevel(usernameCacheProperties.getConcurrencyLevel())
-				.maximumSize(usernameCacheProperties.getExpire())
-				.expireAfterAccess(usernameCacheProperties.getMaximumSize(), TimeUnit.SECONDS)
+				.maximumSize(usernameCacheProperties.getMaximumSize())
+				.expireAfterAccess(usernameCacheProperties.getExpire(), TimeUnit.SECONDS)
 				.build();
 	}
 
