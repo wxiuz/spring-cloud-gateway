@@ -335,7 +335,7 @@ public class KylinUserRoutePredicateFactory
 				log.info(String.format("Request username [%s] from ke server", username));
 				return username;
 			});
-		} catch (ExecutionException e) {
+		} catch (Throwable e) {
 			log.error("Request username from ke occur error", e);
 			// ignore it and return null
 			return null;
