@@ -5,7 +5,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.netflix.loadbalancer.BaseLoadBalancer;
 import com.netflix.loadbalancer.IPingStrategy;
-import com.netflix.loadbalancer.RandomRule;
+import com.netflix.loadbalancer.RoundRobinRule;
 import io.kyligence.kap.gateway.config.GlobalConfig;
 import io.kyligence.kap.gateway.constant.KylinGatewayVersion;
 import io.kyligence.kap.gateway.constant.KylinResourceGroupTypeEnum;
@@ -126,7 +126,7 @@ public class StandardRouteTableTransformer implements RouteTableTransformer {
 	@Override
 	public KylinLoadBalancer convert2KylinLoadBalancer(KylinRouteRaw routeRaw) {
 		KylinLoadBalancer kylinLoadBalancer =
-				new KylinLoadBalancer(getServiceId(routeRaw), ping, new RandomRule(), pingStrategy, globalConfig.getLastValidRawRouteTableMvcc().get());
+				new KylinLoadBalancer(getServiceId(routeRaw), ping, new RoundRobinRule(), pingStrategy, globalConfig.getLastValidRawRouteTableMvcc().get());
 
 		kylinLoadBalancer.addServers(routeRaw.getBackends());
 		return kylinLoadBalancer;

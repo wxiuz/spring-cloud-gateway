@@ -145,7 +145,7 @@ public class KylinUserRoutePredicateFactory
 
 		Set<String> usernameSet = StringUtils.commaDelimitedListToSet(config.getUsername());
 		// 如果匹配到了当前资源组，那么检查一下当前资源组下是否有存活的实例，如果没有，则走项目级别的默认资源组
-		if (usernameSet.contains(username) && chooseServer(config) != null) {
+		if (usernameSet.contains(username) && existsLiveServer(config)) {
 			return true;
 		}
 		return false;
@@ -383,6 +383,14 @@ public class KylinUserRoutePredicateFactory
 			return null;
 		}
 		return kylinLoadBalancer.chooseServer(SERVER_DEFAULT_HINT);
+	}
+
+	private boolean existsLiveServer(Config config) {
+		KylinLoadBalancer kylinLoadBalancer = balancerCache.getKylinBalancer().get(config.getServiceId());
+		if (kylinLoadBalancer == null) {
+			return false;
+		}
+		return CollectionUtils.isNotEmpty(kylinLoadBalancer.getReachableServers());
 	}
 
 	@Data
