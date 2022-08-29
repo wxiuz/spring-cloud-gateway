@@ -62,6 +62,7 @@
 		<commons-io.version>2.10.0</commons-io.version>
 		<mysql.version>8.0.28</mysql.version>
 		<netty.version>4.1.76.Final</netty.version>
+		<netty-common.version>4.1.77.Final</netty-common.version>
 		<protobuf.version>3.19.3</protobuf.version>
 		<logback.version>1.2.10</logback.version>
 	</properties>
@@ -160,7 +161,7 @@
 			<dependency>
 				<groupId>io.netty</groupId>
 				<artifactId>netty-common</artifactId>
-				<version>${netty.version}</version>
+				<version>${netty-common.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>io.netty</groupId>
