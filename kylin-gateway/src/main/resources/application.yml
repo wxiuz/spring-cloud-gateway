@@ -11,6 +11,18 @@ spring:
       httpclient:
         connectTimeout: 15000
         responseTimeout: 480000
+  datasource:
+    driver-class-name: ${kylin.gateway.datasource.driver-class-name}
+    url: ${kylin.gateway.datasource.url}
+    username: ${kylin.gateway.datasource.username}
+    password: ${kylin.gateway.datasource.password}
+    hikari:
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      maximum-pool-size: 10
+      minimum-idle: 1
+      connection-test-query: select 1
 
 logging:
   level:

@@ -1,6 +1,5 @@
 package io.kyligence.kap.gateway.config;
 
-import com.mysql.cj.jdbc.MysqlDataSource;
 import io.kyligence.kap.gateway.constant.KylinGatewayVersion;
 import io.kyligence.kap.gateway.entity.KylinJdbcDataSource;
 import io.kyligence.kap.gateway.persistent.FileDataSource;
@@ -12,13 +11,14 @@ import io.kyligence.kap.gateway.route.reader.KylinJdbcRouteTableReader;
 import io.kyligence.kap.gateway.route.reader.MockRouteTableReader;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
+import org.springframework.context.annotation.Import;
 
 @Configuration
 @EnableConfigurationProperties
@@ -26,6 +26,13 @@ public class KylinRouteTableConfiguration {
 
 	@Value(value = "${kylin.gateway.ke.version:4x}")
 	private String version;
+
+	@Configuration(proxyBeanMethods = false)
+	@ConditionalOnProperty(name = "kylin.gateway.datasource.type", havingValue = "jdbc")
+	@Import({DataSourceAutoConfiguration.class})
+	static class EnableDataSourceAutoConfiguration {
+
+	}
 
 	@Bean
 	@ConditionalOnProperty(name = "kylin.gateway.datasource.type", havingValue = "jdbc")
@@ -36,13 +43,7 @@ public class KylinRouteTableConfiguration {
 
 	@Bean
 	@ConditionalOnProperty(name = "kylin.gateway.datasource.type", havingValue = "jdbc")
-	public IRouteTableReader kylinRouteStore(KylinJdbcDataSource kylinJdbcDataSource) {
-		DataSource dataSource = DataSourceBuilder.create().type(MysqlDataSource.class)
-				.driverClassName(kylinJdbcDataSource.getDriverClassName())
-				.url(kylinJdbcDataSource.getUrl())
-				.username(kylinJdbcDataSource.getUsername())
-				.password(kylinJdbcDataSource.getPassword()).build();
-
+	public IRouteTableReader kylinRouteStore(KylinJdbcDataSource kylinJdbcDataSource, DataSource dataSource) {
 		if (KylinGatewayVersion.KYLIN_3X.equals(version)) {
 			return new Kylin3XJdbcRouteTableReader(
 					new KylinJdbcTemplate(dataSource, kylinJdbcDataSource.getTableName()),
