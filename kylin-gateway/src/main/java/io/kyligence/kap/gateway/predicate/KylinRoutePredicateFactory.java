@@ -3,16 +3,23 @@ package io.kyligence.kap.gateway.predicate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.kyligence.kap.gateway.cache.GlobalRoutingUrlsCache;
 import io.kyligence.kap.gateway.utils.UrlProjectUtil;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.function.Predicate;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.reactivestreams.Publisher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.handler.AsyncPredicate;
 import org.springframework.cloud.gateway.handler.predicate.AbstractRoutePredicateFactory;
 import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.reactive.function.server.HandlerStrategies;
@@ -20,17 +27,10 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.function.Predicate;
 
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.PROJECTS_KEY;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.PROJECT_FLAG;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.PROJECT_KEY;
-import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.READ_REQUEST_BODY_OBJECT_KEY;
 
 public class KylinRoutePredicateFactory
 		extends AbstractRoutePredicateFactory<KylinRoutePredicateFactory.Config> {
@@ -41,6 +41,9 @@ public class KylinRoutePredicateFactory
 	private final List<HttpMessageReader<?>> messageReaders;
 
 	private final Class inClass;
+
+	@Autowired
+	private GlobalRoutingUrlsCache globalRoutingUrlsCache;
 
 	public KylinRoutePredicateFactory() {
 		super(Config.class);
@@ -90,19 +93,6 @@ public class KylinRoutePredicateFactory
 		return testBasic(projects.get(0), config);
 	}
 
-	private boolean testProjectsAndMark(ServerWebExchange exchange, Config config, String project) {
-		if (StringUtils.isBlank(project)) {
-			return false;
-		}
-
-		setProject(exchange, project);
-		return testBasic(project, config);
-	}
-
-	private Predicate<String> testBodyPredicate(Config config) {
-		return project -> testBasic(project, config);
-	}
-
 	private String readProjectFromCacheBody(String cacheBody) {
 		if (StringUtils.isBlank(cacheBody)) {
 			return null;
@@ -136,53 +126,56 @@ public class KylinRoutePredicateFactory
 	@Override
 	@SuppressWarnings("unchecked")
 	public AsyncPredicate<ServerWebExchange> applyAsync(Config config) {
-		Predicate predicate = testBodyPredicate(config);
 
 		return new AsyncPredicate<ServerWebExchange>() {
 			@Override
 			public Publisher<Boolean> apply(ServerWebExchange exchange) {
+				String path = exchange.getRequest().getPath().toString();
+				// 做KE老版本的特殊URL兼容问题
+				if (globalRoutingUrlsCache.shouldGlobalRouting(path)) {
+					return Mono.just(false);
+				}
+
+				// project_flag 不为 null，代表已经对项目信息已经解析过了，此处就不再继续对项目信息进行重复解析，直接使用结果
 				if (Objects.nonNull(exchange.getAttribute(PROJECT_FLAG))) {
 					return Mono.just(testBasic(exchange.getAttribute(PROJECT_KEY), config));
 				}
 
+				// 设置为空，代表已经做过项目信息解析，但是没有解析到项目
 				exchange.getAttributes().put(PROJECT_FLAG, "");
 
-				// 参考 https://olapio.atlassian.net/browse/KM-1399
-				if (exchange.getRequest().getMethod() == HttpMethod.GET) {
-					return Mono.just(false);
-				}
-
+				// 第一步: 从request header中获取project信息
 				List<String> headerProjects = exchange.getRequest().getHeaders().get(PROJECT_KEY);
 				if (CollectionUtils.isNotEmpty(headerProjects)) {
 					return Mono.just(testProjectsAndMark(exchange, config, headerProjects));
 				}
 
+				// 第二步: 从query parameter中获取project信息，验证一下有project parameter值为null的情况和没有project parameter情况
 				List<String> queryProjects = exchange.getRequest().getQueryParams().get(PROJECT_KEY);
 				if (CollectionUtils.isNotEmpty(queryProjects)) {
 					return Mono.just(testProjectsAndMark(exchange, config, queryProjects));
 				}
 
-				String pathProject = UrlProjectUtil.extractProjectFromUrlPath(exchange);
-				if (StringUtils.isNotBlank(pathProject)) {
-					return Mono.just(testProjectsAndMark(exchange, config, pathProject));
-				}
-
-				if (Boolean.valueOf(exchange.getAttribute(READ_REQUEST_BODY_OBJECT_KEY))) {
-					return Mono.just(false);
-				}
-
-				exchange.getAttributes().put(READ_REQUEST_BODY_OBJECT_KEY, "true");
+				// 第三步: 从request body中解析并获取project信息，如果从request body中获取不到，则从url path中获取
 				return ServerWebExchangeUtils.cacheRequestBodyAndRequest(exchange,
 						serverHttpRequest -> ServerRequest
 								.create(exchange.mutate().request(serverHttpRequest).build(), messageReaders)
 								.bodyToMono(inClass)
+								.defaultIfEmpty("")
 								.map(objectValue -> {
+									// 从request body中取 project 信息
 									String project = readProjectFromCacheBody(objectValue);
 									if (Objects.nonNull(project)) {
 										setProject(exchange, project);
+									} else {
+										// 从path中获取 project 信息
+										project = UrlProjectUtil.extractProjectFromUrlPath(exchange);
+										if (Objects.nonNull(project)) {
+											setProject(exchange, project);
+										}
 									}
 									return Objects.isNull(project) ? "" : project;
-								}).map(project -> predicate.test(project)));
+								}).map(project -> testBasic(String.valueOf(project), config)));
 			}
 
 			@Override

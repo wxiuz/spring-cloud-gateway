@@ -8,6 +8,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.netflix.loadbalancer.Server;
 import io.kyligence.kap.gateway.cache.GlobalKylinBalancerCache;
+import io.kyligence.kap.gateway.cache.GlobalRoutingUrlsCache;
 import io.kyligence.kap.gateway.config.UsernameCacheProperties;
 import io.kyligence.kap.gateway.filter.KylinLoadBalancer;
 import io.kyligence.kap.gateway.utils.UrlProjectUtil;
@@ -35,7 +36,6 @@ import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.HttpCookie;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.HttpMessageReader;
 import org.springframework.util.Base64Utils;
@@ -49,9 +49,9 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.PROJECT_FLAG;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.PROJECT_KEY;
-import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.READ_REQUEST_BODY_OBJECT_KEY;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.SERVICE_ID_KEY;
 import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.USERNAME_KEY;
 
@@ -99,6 +99,9 @@ public class KylinUserRoutePredicateFactory
 
 	@Autowired
 	private GlobalKylinBalancerCache balancerCache;
+
+	@Autowired
+	private GlobalRoutingUrlsCache globalRoutingUrlsCache;
 
 	@Autowired
 	private UsernameCacheProperties usernameCacheProperties;
@@ -159,14 +162,6 @@ public class KylinUserRoutePredicateFactory
 		return testBasic(exchange, config);
 	}
 
-	private boolean testProjectsAndMark(ServerWebExchange exchange, Config config, String project) {
-		if (!StringUtils.hasText(project)) {
-			return false;
-		}
-		setProject(exchange, project);
-		return testBasic(exchange, config);
-	}
-
 	private String readProjectFromCacheBody(String cacheBody) {
 		if (!StringUtils.hasText(cacheBody)) {
 			return null;
@@ -198,48 +193,53 @@ public class KylinUserRoutePredicateFactory
 		return new AsyncPredicate<ServerWebExchange>() {
 			@Override
 			public Publisher<Boolean> apply(ServerWebExchange exchange) {
+				String path = exchange.getRequest().getPath().toString();
+				// 做KE老版本的特殊 url 兼容问题
+				if (globalRoutingUrlsCache.shouldGlobalRouting(path)) {
+					return Mono.just(false);
+				}
+
+				// project_flag 不为 null，代表已经对项目信息已经解析过了，此处就不再继续对项目信息进行重复解析，直接使用结果
 				if (Objects.nonNull(exchange.getAttribute(PROJECT_FLAG))) {
 					return Mono.just(testBasic(exchange, config));
 				}
 
+				// 设置为空，代表已经做过项目信息解析，但是没有解析到项目
 				exchange.getAttributes().put(PROJECT_FLAG, "");
 
-				// 参考 https://olapio.atlassian.net/browse/KM-1399
-				if (exchange.getRequest().getMethod() == HttpMethod.GET) {
-					return Mono.just(false);
-				}
-
+				// 第一步: 从 request header 中获取 project 信息，验证一下有 project header 值为 null 的情况和没有 project header 情况
 				List<String> headerProjects = exchange.getRequest().getHeaders().get(PROJECT_KEY);
 				if (CollectionUtils.isNotEmpty(headerProjects)) {
 					return Mono.just(testProjectsAndMark(exchange, config, headerProjects));
 				}
 
+				// 第二步: 从 query parameter 中获取 project 信息，验证一下有 project parameter 值为 null 的情况和没有 project parameter 情况
 				List<String> queryProjects = exchange.getRequest().getQueryParams().get(PROJECT_KEY);
 				if (CollectionUtils.isNotEmpty(queryProjects)) {
 					return Mono.just(testProjectsAndMark(exchange, config, queryProjects));
 				}
 
-				String pathProject = UrlProjectUtil.extractProjectFromUrlPath(exchange);
-				if (StringUtils.hasText(pathProject)) {
-					return Mono.just(testProjectsAndMark(exchange, config, pathProject));
-				}
-
-				if (Boolean.valueOf(exchange.getAttribute(READ_REQUEST_BODY_OBJECT_KEY))) {
-					return Mono.just(false);
-				}
-
-				exchange.getAttributes().put(READ_REQUEST_BODY_OBJECT_KEY, "true");
+				// 第三步: 从 request body 中解析并获取 project 信息， 如果 request body 没有 project，则从 url path 中获取 project
 				return ServerWebExchangeUtils.cacheRequestBodyAndRequest(exchange,
 						serverHttpRequest -> ServerRequest
 								.create(exchange.mutate().request(serverHttpRequest).build(), messageReaders)
 								.bodyToMono(inClass)
+								.defaultIfEmpty("")
 								.map(objectValue -> {
+									// 从 request body 中取 project 信息
 									String project = readProjectFromCacheBody(objectValue);
 									if (Objects.nonNull(project)) {
 										setProject(exchange, project);
+									} else {
+										// 从 url path 中获取 project 信息
+										project = UrlProjectUtil.extractProjectFromUrlPath(exchange);
+										if (Objects.nonNull(project)) {
+											setProject(exchange, project);
+										}
 									}
 									return Objects.isNull(project) ? "" : project;
 								}).map(project -> testBasic(exchange, config)));
+
 			}
 
 			@Override
