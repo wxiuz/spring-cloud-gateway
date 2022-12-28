@@ -58,7 +58,7 @@ kylin:
     ke:
       version: 4x
       authentication-url: /kylin/api/user/authentication
-      global-routing-urls: /kylin/api/projects/default_configs,/kylin/api/models/check_partition_desc
+      global-routing-urls: GET:/kylin/api/projects/default_configs,GET:/kylin/api/projects,POST:/kylin/api/models/check_partition_desc
     rest-template:
       connect-timeout: 2000
       read-timeout: 5000
