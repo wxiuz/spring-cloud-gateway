@@ -117,16 +117,15 @@ public class KylinGlobalRoutePredicateFactory extends AbstractRoutePredicateFact
 		return new AsyncPredicate<ServerWebExchange>() {
 			@Override
 			public Publisher<Boolean> apply(ServerWebExchange exchange) {
-				String path = exchange.getRequest().getPath().toString();
 				// 做KE老版本的特殊URL兼容问题
-				if (globalRoutingUrlsCache.shouldGlobalRouting(path)) {
+				if (globalRoutingUrlsCache.shouldGlobalRouting(exchange)) {
 					return Mono.just(true);
 				}
 
 				// 有前面的规则做了项目解析，如果开启了资源组，但是没有任何一个项目信息，此时所有请求就会直接走到该处理
 				if (Objects.nonNull(exchange.getAttribute(PROJECT_FLAG))) {
-					// 没有解析出项目，此时走全局路由
-					if (Objects.isNull(exchange.getAttribute(PROJECT_KEY))) {
+					// 没有解析出项目或者解析的项目是一个空串即传了project但是没有传值，此时走全局路由
+					if (StringUtils.isBlank(exchange.getAttribute(PROJECT_KEY))) {
 						return Mono.just(true);
 					}
 					// 解析出了项目信息，但是没有匹配的规则，那么说明没有配置资源组，应该报没有资源组错误信息

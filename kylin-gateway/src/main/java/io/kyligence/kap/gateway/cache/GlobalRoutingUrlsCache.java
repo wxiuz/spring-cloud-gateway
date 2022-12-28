@@ -1,5 +1,6 @@
 package io.kyligence.kap.gateway.cache;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import java.util.Set;
 import javax.annotation.PostConstruct;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ServerWebExchange;
 
 /**
  * @author xiuzhao.wu
@@ -20,7 +22,8 @@ public class GlobalRoutingUrlsCache {
 
 	private static final Set<String> URLS = Sets.newHashSet();
 
-	private static final String DEFAULT_URLS = "/kylin/api/projects/default_configs,/kylin/api/models/check_partition_desc";
+	private static final String DEFAULT_URLS = "GET:/kylin/api/projects/default_configs,GET:/kylin/api/projects," +
+			"POST:/kylin/api/models/check_partition_desc";
 
 	@Value("${kylin.gateway.ke.global-routing-urls:" + DEFAULT_URLS + "}")
 	private String globalRoutingUrls;
@@ -33,12 +36,13 @@ public class GlobalRoutingUrlsCache {
 		URLS.addAll(StringUtils.commaDelimitedListToSet(this.globalRoutingUrls));
 	}
 
-	public boolean shouldGlobalRouting(String path) {
+	public boolean shouldGlobalRouting(ServerWebExchange exchange) {
+		String path = exchange.getRequest().getPath().toString();
 		if (!StringUtils.hasText(path)) {
 			return false;
 		}
-		return URLS.contains(path);
+		String method = exchange.getRequest().getMethodValue().toUpperCase();
+		String url = Joiner.on(":").join(method, path);
+		return URLS.contains(url);
 	}
-
-
 }

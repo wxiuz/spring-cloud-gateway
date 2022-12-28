@@ -193,9 +193,8 @@ public class KylinUserRoutePredicateFactory
 		return new AsyncPredicate<ServerWebExchange>() {
 			@Override
 			public Publisher<Boolean> apply(ServerWebExchange exchange) {
-				String path = exchange.getRequest().getPath().toString();
 				// 做KE老版本的特殊 url 兼容问题
-				if (globalRoutingUrlsCache.shouldGlobalRouting(path)) {
+				if (globalRoutingUrlsCache.shouldGlobalRouting(exchange)) {
 					return Mono.just(false);
 				}
 
