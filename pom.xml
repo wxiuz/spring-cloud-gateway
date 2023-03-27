@@ -72,6 +72,7 @@
 		<jackson-bom.version>2.13.4.20221013</jackson-bom.version>
 		<tomcat.version>9.0.72</tomcat.version>
 		<spring.boot.version>2.6.13</spring.boot.version>
+		<spring.webmvc.vesion>5.3.26</spring.webmvc.vesion>
 	</properties>
 
 	<dependencyManagement>
@@ -139,6 +140,11 @@
 				<groupId>mysql</groupId>
 				<artifactId>mysql-connector-java</artifactId>
 				<version>${mysql.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-webmvc</artifactId>
+				<version>${spring.webmvc.vesion}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.springframework.cloud</groupId>
